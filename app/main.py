@@ -89,3 +89,10 @@ async def delete_all_tasks():
     global next_task_id
     next_task_id = 1
     return {"message": "All tasks deleted"}
+
+@app.get("/tasks/{task_id}", response_model=TaskResponse)
+async def get_task(task_id: int):
+    """Возвращает задачу по ID."""
+    for task in tasks_db:
+        if task["id"] == task_id:
+            return task
