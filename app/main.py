@@ -71,3 +71,8 @@ async def create_task(task: TaskCreate):
     logger.info("Task created: id=%d, title=%s", new_task["id"], new_task["title"])
 
     return new_task
+
+@app.get("/tasks/count")
+async def count_tasks():
+    """Возвращает общее количество задач."""
+    return {"count": len(tasks_db)}
