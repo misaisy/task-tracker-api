@@ -84,7 +84,7 @@ async def list_tasks():
 
 @app.get("/tasks/{task_id}", response_model=TaskResponse)
 async def get_task(task_id: int):
-    """Возвращает задачу по ID."""
+    """Возвращает задачу по ID"""
     for task in tasks_db:
         if task["id"] == task_id:
             return task
