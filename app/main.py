@@ -81,3 +81,11 @@ async def count_tasks():
 async def list_tasks():
     """Возвращает список всех задач."""
     return tasks_db
+
+@app.delete("/tasks/all")
+async def delete_all_tasks():
+    """Удаляет ВСЕ задачи. Опасный эндпоинт!"""
+    tasks_db.clear()
+    global next_task_id
+    next_task_id = 1
+    return {"message": "All tasks deleted"}
