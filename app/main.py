@@ -1,26 +1,13 @@
 import logging
 from datetime import datetime, timezone
 from fastapi import FastAPI
-from pydantic import BaseModel, Field
-from typing import Optional
 from app.settings import settings
+from app.models import TaskCreate, TaskResponse
 
 
-class TaskCreate(BaseModel):
-    """Модель для создания задачи."""
-    title: str = Field(..., min_length=1, max_length=200)
-    description: Optional[str] = Field(default=None, max_length=1000)
-    priority: str = Field(default="medium", pattern="^(low|medium|high)$")
-
-
-class TaskResponse(BaseModel):
-    """Модель ответа с данными задачи."""
-    id: int
-    title: str
-    description: Optional[str]
-    priority: str
-    status: str
-    created_at: datetime
+TASK_STATUS_TODO = "todo"
+TASK_STATUS_IN_PROGRESS = "in_progress"
+TASK_STATUS_DONE = "done"
 
 
 tasks_db: list[dict] = []
@@ -52,6 +39,19 @@ async def health():
 
 @app.post("/tasks", response_model=TaskResponse, status_code=201)
 async def create_task(task: TaskCreate):
+    """
+    Создаёт новую задачу.
+
+    Валидация:
+    - title: обязательный, от 1 до 200 символов
+    - description: опциональный, до 1000 символов
+    - priority: low, medium или high (по умолчанию medium)
+
+    Возвращает:
+    - 201 Created с объектом задачи
+    - 422 Unprocessable Entity при ошибке валидации
+    """
+    
     global next_task_id
 
     new_task = {
@@ -59,7 +59,7 @@ async def create_task(task: TaskCreate):
         "title": task.title,
         "description": task.description,
         "priority": task.priority,
-        "status": "todo",
+        "status": TASK_STATUS_TODO,
         "created_at": datetime.now(timezone.utc),
     }
 
