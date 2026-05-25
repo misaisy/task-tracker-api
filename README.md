@@ -11,7 +11,7 @@
 
 ### 1. Клонируйте репозиторий
 ```
-git clone <url-вашего-репозитория>
+git clone https://github.com/misaisy/task-tracker-api.git
 cd task_tracker_api
 ```
 
