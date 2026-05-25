@@ -76,3 +76,8 @@ async def create_task(task: TaskCreate):
 async def count_tasks():
     """Возвращает общее количество задач."""
     return {"count": len(tasks_db)}
+
+@app.get("/tasks", response_model=list[TaskResponse])
+async def list_tasks():
+    """Возвращает список всех задач."""
+    return tasks_db
