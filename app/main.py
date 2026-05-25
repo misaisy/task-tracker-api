@@ -49,3 +49,23 @@ async def startup_event():
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+@app.post("/tasks", response_model=TaskResponse, status_code=201)
+async def create_task(task: TaskCreate):
+    global next_task_id
+
+    new_task = {
+        "id": next_task_id,
+        "title": task.title,
+        "description": task.description,
+        "priority": task.priority,
+        "status": "todo",
+        "created_at": datetime.now(timezone.utc),
+    }
+
+    tasks_db.append(new_task)
+    next_task_id += 1
+
+    logger.info("Task created: id=%d, title=%s", new_task["id"], new_task["title"])
+
+    return new_task
