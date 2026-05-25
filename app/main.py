@@ -5,9 +5,9 @@ from app.settings import settings
 from app.models import TaskCreate, TaskResponse
 
 
-TASK_STATUS_TODO = "todo"
-TASK_STATUS_IN_PROGRESS = "in_progress"
-TASK_STATUS_DONE = "done"
+TASK_STATUS_TODO = "TODO"
+TASK_STATUS_IN_PROGRESS = "IN_PROGRESS"
+TASK_STATUS_DONE = "DONE"
 
 
 tasks_db: list[dict] = []
