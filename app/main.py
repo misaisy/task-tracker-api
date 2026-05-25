@@ -7,7 +7,9 @@ from app.models import TaskCreate, TaskResponse
 
 TASK_STATUS_TODO = "todo"
 TASK_STATUS_IN_PROGRESS = "in_progress"
+TASK_STATUS_REVIEW = "review"
 TASK_STATUS_DONE = "done"
+TASK_STATUS_ARCHIVED = "archived"
 
 
 tasks_db: list[dict] = []
