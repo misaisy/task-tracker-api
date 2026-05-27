@@ -3,30 +3,98 @@
 Слой: HTTP (routers).
 Зависит от: services, models, dependencies.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Query, status
+from fastapi.responses import PlainTextResponse, JSONResponse
 
 from app.dependencies import get_task_service
-from app.models import TaskCreate, TaskResponse
+from app.models import TaskCreate, TaskResponse, TaskListResponse, TaskUpdate, AssignRequest, TaskSummaryResponse, TaskExportResponse
 from app.services.task_service import TaskService
-
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
+@router.get("/", response_model=TaskListResponse)
+async def list_tasks(
+    status: str | None = Query(default=None, description="Фильтр по статусу"),
+    priority: str | None = Query(default=None, description="Фильтр по приоритету"),
+    page: int = Query(default=1, ge=1, description="Номер страницы"),
+    page_size: int = Query(default=20, ge=1, le=100, description="Размер страницы"),
+    service: TaskService = Depends(get_task_service),
+):
+    """Возвращает список задач с фильтрацией и пагинацией."""
+    return service.get_all_tasks(
+        status=status,
+        priority=priority,
+        page=page,
+        page_size=page_size,
+    )
+
+
 @router.post("/", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
-async def create_task(task: TaskCreate, service: TaskService = Depends(get_task_service)):
+async def create_task(
+    task: TaskCreate,
+    service: TaskService = Depends(get_task_service),
+):
     """Создаёт новую задачу."""
-    new_task = service.create_task(task.model_dump())
-    return new_task
+    return service.create_task(task.model_dump())
 
 
-@router.get("/", response_model=list[TaskResponse])
-async def list_tasks(service: TaskService = Depends(get_task_service)):
-    """Возвращает список всех задач."""
-    return service.get_all_tasks()
+@router.patch("/{task_id}", response_model=TaskResponse)
+async def update_task(
+    task_id: int,
+    update: TaskUpdate,
+    service: TaskService = Depends(get_task_service),
+):
+    """Частично обновляет задачу."""
+    return service.update_task(task_id, update)
 
+
+@router.post("/{task_id}/assign", response_model=TaskResponse)
+async def assign_task(
+    task_id: int,
+    request: AssignRequest,
+    service: TaskService = Depends(get_task_service),
+):
+    """Назначает исполнителя задаче."""
+    return service.assign_task(task_id, request.user_id)
+
+
+@router.post("/{task_id}/archive", response_model=TaskResponse)
+async def archive_task(
+    task_id: int,
+    service: TaskService = Depends(get_task_service),
+):
+    """Архивирует задачу."""
+    return service.archive_task(task_id)
+
+
+@router.get("/summary", response_model=TaskSummaryResponse)
+async def get_summary(
+    service: TaskService = Depends(get_task_service),
+):
+    """Возвращает сводку по задачам."""
+    return service.get_summary()
+
+
+@router.get("/export")
+async def export_tasks(
+    format: str = "json",
+    service: TaskService = Depends(get_task_service),
+):
+    """Выгружает все задачи в JSON или CSV."""
+    from fastapi.responses import PlainTextResponse, JSONResponse
+    
+    result = service.export_tasks(format=format)
+    
+    if format == "csv":
+        return PlainTextResponse(content=result, media_type="text/csv")
+    
+    return JSONResponse(content=result)
 
 @router.get("/{task_id}", response_model=TaskResponse)
-async def get_task(task_id: int, service: TaskService = Depends(get_task_service)):
+async def get_task(
+    task_id: int,
+    service: TaskService = Depends(get_task_service),
+):
     """Возвращает задачу по ID."""
     return service.get_task_by_id(task_id)

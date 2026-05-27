@@ -42,5 +42,26 @@ class TaskStore:
         """Очищает хранилище (для тестов)."""
         self._tasks.clear()
         self._next_id = 1
+    
+    def assign(self, task_id: int, user_id: int) -> dict | None:
+        """Назначает исполнителя задаче."""
+        task = self.get_by_id(task_id)
+        if task is None:
+            return None
+        task["assignee_id"] = user_id
+
+        if task.get("status") == "TODO":
+            task["status"] = "IN_PROGRESS"
+        return task
+
+    def archive(self, task_id: int) -> dict | None:
+        """Архивирует задачу."""
+        task = self.get_by_id(task_id)
+        if task is None:
+            return None
+        if task.get("status") == "archived":
+            return None
+        task["status"] = "archived"
+        return task
 
 task_store = TaskStore()
