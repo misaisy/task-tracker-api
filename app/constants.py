@@ -1,3 +1,8 @@
+"""
+Константы приложения.
+Слой: конфигурация.
+"""
+
 # Статусы задач
 TASK_STATUS_TODO = "TODO"
 TASK_STATUS_IN_PROGRESS = "IN_PROGRESS"
@@ -13,3 +18,7 @@ PRIORITY_HIGH = "high"
 # Настройки по умолчанию
 DEFAULT_PRIORITY = PRIORITY_MEDIUM
 DEFAULT_STATUS = TASK_STATUS_TODO
+
+# Роли пользователей
+USER_ROLE_ADMIN = "admin"
+USER_ROLE_USER = "user"
