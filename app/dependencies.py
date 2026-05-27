@@ -7,6 +7,8 @@ from app.services.user_service import UserService
 from app.storage.comment_store import CommentStore, comment_store
 from app.services.comment_service import CommentService
 
+from app.settings import Settings, settings as _settings
+
 
 def get_task_service() -> TaskService:
     return TaskService(store=task_store)
@@ -18,3 +20,7 @@ def get_user_service() -> UserService:
 
 def get_comment_service() -> CommentService:
     return CommentService(store=comment_store)
+
+def get_settings() -> Settings:
+    """Возвращает настройки приложения."""
+    return _setting

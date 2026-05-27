@@ -1,7 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
-
-from fastapi import FastAPI, status
+from fastapi import FastAPI, Depends
+from app.dependencies import get_settings
 
 from app.routers.tasks import router as tasks_router
 from app.routers.users import router as users_router
@@ -20,7 +20,6 @@ from app.exceptions import (
     CommentNotFoundError,
     ValidationError,
 )
-from app.settings import settings
 
 
 LOG_LEVELS = {
@@ -46,6 +45,7 @@ next_task_id: int = 1
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Жизненный цикл приложения."""
+    settings = get_settings()
     logger.info("=== Task Tracker API starting ===")
     logger.info("Host: %s", settings.APP_HOST)
     logger.info("Port: %s", settings.APP_PORT)
