@@ -1,13 +1,11 @@
-from app.storage.task_store import TaskStore, task_store
-from app.services.task_service import TaskService
-
-from app.storage.user_store import UserStore, user_store
-from app.services.user_service import UserService
-
-from app.storage.comment_store import CommentStore, comment_store
 from app.services.comment_service import CommentService
-
-from app.settings import Settings, settings as _settings
+from app.services.task_service import TaskService
+from app.services.user_service import UserService
+from app.settings import Settings
+from app.settings import settings as _settings
+from app.storage.comment_store import comment_store
+from app.storage.task_store import task_store
+from app.storage.user_store import user_store
 
 
 def get_task_service() -> TaskService:
@@ -21,6 +19,7 @@ def get_user_service() -> UserService:
 def get_comment_service() -> CommentService:
     return CommentService(store=comment_store)
 
+
 def get_settings() -> Settings:
     """Возвращает настройки приложения."""
-    return _setting
+    return _settings

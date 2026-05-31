@@ -4,10 +4,10 @@
 Зависит от: services, models, dependencies.
 """
 from fastapi import APIRouter, Depends, Query, status
-from fastapi.responses import PlainTextResponse, JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from app.dependencies import get_task_service
-from app.models import TaskCreate, TaskResponse, TaskListResponse, TaskUpdate, AssignRequest, TaskSummaryResponse, TaskExportResponse
+from app.models import AssignRequest, TaskCreate, TaskListResponse, TaskResponse, TaskSummaryResponse, TaskUpdate
 from app.services.task_service import TaskService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -82,14 +82,14 @@ async def export_tasks(
     service: TaskService = Depends(get_task_service),
 ):
     """Выгружает все задачи в JSON или CSV."""
-    from fastapi.responses import PlainTextResponse, JSONResponse
-    
+
     result = service.export_tasks(format=format)
-    
+
     if format == "csv":
         return PlainTextResponse(content=result, media_type="text/csv")
-    
+
     return JSONResponse(content=result)
+
 
 @router.get("/{task_id}", response_model=TaskResponse)
 async def get_task(

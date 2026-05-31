@@ -3,7 +3,7 @@
 Слой: HTTP (routers).
 Зависит от: services, models, dependencies.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
 from app.dependencies import get_user_service
 from app.models import UserCreate, UserResponse

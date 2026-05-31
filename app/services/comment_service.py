@@ -4,8 +4,8 @@
 Зависит от: storage.
 """
 import logging
+
 from app.storage.comment_store import CommentStore
-from app.exceptions import CommentNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -20,8 +20,8 @@ class CommentService:
     def create_comment(self, comment_data: dict) -> dict:
         comment = self.store.add(comment_data)
         logger.info(
-            "Comment created: id=%d, task_id=%d", 
-            comment["id"], 
+            "Comment created: id=%d, task_id=%d",
+            comment["id"],
             comment["task_id"],
         )
         return comment

@@ -1,4 +1,5 @@
 import uvicorn
+
 from app.settings import settings
 
 if __name__ == "__main__":

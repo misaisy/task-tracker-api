@@ -1,19 +1,20 @@
-import sys
 import logging
-from pydantic import Field, ValidationError, field_validator, computed_field
+import sys
+
+from pydantic import Field, ValidationError, computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
-    
+
     APP_HOST: str = Field(default="127.0.0.1")
 
     APP_PORT: int = Field(default=8000, ge=1024, le=65535)
 
     DEBUG: bool = Field(default=False)
-    
+
     LOG_LEVEL: str = Field(default="INFO")
 
     model_config = SettingsConfigDict(
@@ -59,12 +60,13 @@ class Settings(BaseSettings):
                 f"Получено: '{value}'"
             )
         return value.upper()
-    
-    @computed_field
+
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def APP_URL(self) -> str:
         """URL приложения, собранный из хоста и порта."""
         return f"http://{self.APP_HOST}:{self.APP_PORT}"
+
 
 try:
     settings = Settings()

@@ -4,8 +4,9 @@
 Зависит от: storage.
 """
 import logging
-from app.storage.user_store import UserStore
+
 from app.exceptions import UserNotFoundError
+from app.storage.user_store import UserStore
 
 logger = logging.getLogger(__name__)
 

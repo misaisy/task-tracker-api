@@ -3,14 +3,14 @@ Pydantic-модели.
 Слой: модели данных.
 """
 from datetime import datetime
-from pydantic import BaseModel, Field, model_validator
-from typing import Optional
+
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 class TaskCreate(BaseModel):
     """Модель для создания задачи."""
     title: str = Field(..., min_length=1, max_length=200)
-    description: Optional[str] = Field(default=None, max_length=1000)
+    description: str | None = Field(default=None, max_length=1000)
     priority: str = Field(default="medium", pattern="^(low|medium|high)$")
 
 
@@ -18,7 +18,7 @@ class TaskResponse(BaseModel):
     """Модель ответа с данными задачи."""
     id: int
     title: str
-    description: Optional[str]
+    description: str | None
     priority: str
     status: str
     created_at: datetime
@@ -32,7 +32,7 @@ class TaskUpdate(BaseModel):
     status: str | None = Field(default=None)
 
     @model_validator(mode="after")
-    def check_title_not_null(self):
+    def check_title_not_null(self) -> "TaskUpdate":  # noqa: UP037
         """Проверяет, что title не установлен в null явно."""
         if "title" in self.model_fields_set and self.title is None:
             raise ValueError("title не может быть null")
@@ -61,7 +61,7 @@ class TaskWithAssigneeResponse(TaskResponse):
 class UserCreate(BaseModel):
     """Модель для создания пользователя."""
     username: str = Field(..., min_length=3, max_length=50)
-    email: str = Field(..., pattern=r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+    email: EmailStr
 
 
 class UserResponse(BaseModel):
@@ -74,7 +74,6 @@ class UserResponse(BaseModel):
 
 class CommentCreate(BaseModel):
     """Модель для создания комментария."""
-    task_id: int = Field(..., gt=0)
     text: str = Field(..., min_length=1, max_length=1000)
 
 
@@ -84,6 +83,7 @@ class CommentResponse(BaseModel):
     task_id: int
     text: str
     created_at: datetime
+
 
 class TaskSummaryResponse(BaseModel):
     """Модель ответа для сводки по задачам."""

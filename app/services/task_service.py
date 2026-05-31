@@ -3,14 +3,13 @@
 Слой: бизнес-логика (services).
 Зависит от: storage.
 """
-"""
-Сервисный слой для задач.
-Содержит бизнес-логику: получение списка, создание, обновление.
-"""
+import csv
+import io
 import logging
-import math
+from datetime import UTC, datetime
 
-from app.exceptions import TaskNotFoundError
+from app.exceptions import TaskNotFoundError, ValidationError
+from app.models import TaskUpdate
 from app.storage.task_store import TaskStore
 
 logger = logging.getLogger(__name__)
@@ -22,7 +21,13 @@ class TaskService:
     def __init__(self, store: TaskStore):
         self.store = store
 
-    def get_all_tasks(self, status: str | None = None, priority: str | None = None, page: int = 1, page_size: int = 20) -> dict:
+    def get_all_tasks(
+        self,
+        status: str | None = None,
+        priority: str | None = None,
+        page: int = 1,
+        page_size: int = 20
+    ) -> dict:
         """
         Возвращает список задач с фильтрацией и пагинацией.
         """
@@ -35,7 +40,7 @@ class TaskService:
             tasks = [t for t in tasks if t["priority"] == priority]
 
         total = len(tasks)
-        pages = max(1, math.ceil(total / page_size))
+        pages = (total + page_size - 1) // page_size
         start = (page - 1) * page_size
         end = start + page_size
         items = tasks[start:end]
@@ -73,7 +78,6 @@ class TaskService:
         task = self.get_task_by_id(task_id)
 
         if task.get("status") == "archived":
-            from app.exceptions import ValidationError
             raise ValidationError("Cannot modify archived task")
 
         forbidden_fields = {"id", "created_at"}
@@ -91,7 +95,7 @@ class TaskService:
 
         logger.info("Task updated: id=%d, fields=%s", task_id, update_data.model_fields_set)
         return task
-    
+
     def assign_task(self, task_id: int, user_id: int) -> dict:
         """
         Назначает исполнителя задаче.
@@ -99,25 +103,23 @@ class TaskService:
         task = self.get_task_by_id(task_id)
 
         if task.get("status") == "archived":
-            from app.exceptions import ValidationError
             raise ValidationError("Cannot assign archived task")
 
         result = self.store.assign(task_id, user_id)
         logger.info("Task assigned: task_id=%d, user_id=%d", task_id, user_id)
-        return result
+        return result  # type: ignore[return-value]
 
     def archive_task(self, task_id: int) -> dict:
         """Архивирует задачу."""
-        task = self.get_task_by_id(task_id)
+        self.get_task_by_id(task_id)
 
         result = self.store.archive(task_id)
         if result is None:
-            from app.exceptions import ValidationError
             raise ValidationError("Task is already archived")
 
         logger.info("Task archived: task_id=%d", task_id)
         return result
-    
+
     def get_summary(self) -> dict:
         """Возвращает сводку по задачам: количество по статусам и приоритетам."""
         tasks = self.store.get_all()
@@ -140,13 +142,11 @@ class TaskService:
             "by_priority": by_priority,
         }
 
-
     def export_tasks(self, format: str = "json") -> dict | str:
         """Выгружает все задачи в указанном формате."""
         tasks = self.store.get_all()
 
         if format == "csv":
-            import io, csv
 
             output = io.StringIO()
             writer = csv.DictWriter(output, fieldnames=["id", "title", "status", "priority", "created_at"])
@@ -161,10 +161,8 @@ class TaskService:
                 })
             return output.getvalue()
 
-        from datetime import datetime, timezone
-
         return {
-            "exported_at": datetime.now(timezone.utc).isoformat(),
+            "exported_at": datetime.now(UTC).isoformat(),
             "format": "json",
             "tasks": tasks,
         }

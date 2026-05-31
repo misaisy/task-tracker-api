@@ -2,15 +2,15 @@ from fastapi import Request, status
 from fastapi.responses import JSONResponse
 
 from app.exceptions import (
-    TaskTrackerError,
-    TaskNotFoundError,
-    UserNotFoundError,
     CommentNotFoundError,
+    TaskNotFoundError,
+    TaskTrackerError,
+    UserNotFoundError,
     ValidationError,
 )
 
 
-async def task_tracker_error_handler(request: Request, exc: TaskTrackerError) -> JSONResponse:
+def task_tracker_error_handler(request: Request, exc: TaskTrackerError) -> JSONResponse:
     """Общий обработчик для всех ошибок приложения."""
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -18,7 +18,7 @@ async def task_tracker_error_handler(request: Request, exc: TaskTrackerError) ->
     )
 
 
-async def task_not_found_handler(request: Request, exc: TaskNotFoundError) -> JSONResponse:
+def task_not_found_handler(request: Request, exc: TaskNotFoundError) -> JSONResponse:
     """Обработчик: задача не найдена - 404."""
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
@@ -26,7 +26,7 @@ async def task_not_found_handler(request: Request, exc: TaskNotFoundError) -> JS
     )
 
 
-async def user_not_found_handler(request: Request, exc: UserNotFoundError) -> JSONResponse:
+def user_not_found_handler(request: Request, exc: UserNotFoundError) -> JSONResponse:
     """Обработчик: пользователь не найден - 404."""
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
@@ -34,7 +34,7 @@ async def user_not_found_handler(request: Request, exc: UserNotFoundError) -> JS
     )
 
 
-async def comment_not_found_handler(request: Request, exc: CommentNotFoundError) -> JSONResponse:
+def comment_not_found_handler(request: Request, exc: CommentNotFoundError) -> JSONResponse:
     """Обработчик: комментарий не найден - 404."""
     return JSONResponse(
         status_code=status.HTTP_404_NOT_FOUND,
@@ -42,7 +42,7 @@ async def comment_not_found_handler(request: Request, exc: CommentNotFoundError)
     )
 
 
-async def validation_error_handler(request: Request, exc: ValidationError) -> JSONResponse:
+def validation_error_handler(request: Request, exc: ValidationError) -> JSONResponse:
     """Обработчик: ошибка валидации - 422."""
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
