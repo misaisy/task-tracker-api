@@ -4,7 +4,19 @@ Pydantic-модели.
 """
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+
+
+class ErrorDetail(BaseModel):
+    """Одна ошибка в списке details."""
+    loc: list[str] | None = None
+    msg: str
+
+
+class ErrorResponse(BaseModel):
+    """Единый формат всех ошибок API."""
+    error_code: str
+    details: str | list[ErrorDetail]
 
 
 class TaskCreate(BaseModel):
@@ -12,6 +24,7 @@ class TaskCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=1000)
     priority: str = Field(default="medium", pattern="^(low|medium|high)$")
+    model_config = ConfigDict(extra="forbid")
 
 
 class TaskResponse(BaseModel):
@@ -30,6 +43,7 @@ class TaskUpdate(BaseModel):
     description: str | None = Field(default=None, max_length=1000)
     priority: str | None = Field(default=None, pattern="^(low|medium|high)$")
     status: str | None = Field(default=None)
+    model_config = ConfigDict(extra="forbid")
 
     @model_validator(mode="after")
     def check_title_not_null(self) -> "TaskUpdate":  # noqa: UP037
@@ -51,6 +65,7 @@ class TaskListResponse(BaseModel):
 class AssignRequest(BaseModel):
     """Модель запроса для назначения исполнителя."""
     user_id: int = Field(..., gt=0, description="ID пользователя-исполнителя")
+    model_config = ConfigDict(extra="forbid")
 
 
 class TaskWithAssigneeResponse(TaskResponse):
@@ -62,6 +77,7 @@ class UserCreate(BaseModel):
     """Модель для создания пользователя."""
     username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
+    model_config = ConfigDict(extra="forbid")
 
 
 class UserResponse(BaseModel):
@@ -75,6 +91,7 @@ class UserResponse(BaseModel):
 class CommentCreate(BaseModel):
     """Модель для создания комментария."""
     text: str = Field(..., min_length=1, max_length=1000)
+    model_config = ConfigDict(extra="forbid")
 
 
 class CommentResponse(BaseModel):

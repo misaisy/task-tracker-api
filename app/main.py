@@ -2,6 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 
 from app.dependencies import get_settings
 from app.error_handlers import (
@@ -11,6 +12,7 @@ from app.error_handlers import (
     task_tracker_error_handler,
     user_not_found_handler,
     validation_error_handler,
+    validation_exception_handler,
 )
 from app.exceptions import (
     CommentNotFoundError,
@@ -67,6 +69,7 @@ def create_app() -> FastAPI:
     app.add_exception_handler(CommentNotFoundError, comment_not_found_handler)  # type: ignore[arg-type]
     app.add_exception_handler(ValidationError, validation_error_handler)  # type: ignore[arg-type]
     app.add_exception_handler(ConflictError, conflict_error_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]
 
     app.include_router(tasks_router)
     app.include_router(users_router)

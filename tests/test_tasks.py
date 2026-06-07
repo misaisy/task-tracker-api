@@ -18,7 +18,7 @@ def test_create_task_success(client):
 
 
 def test_update_task_success(client):
-    """PATCH /tasks/{id} обновляет разрешённые поля и игнорирует запрещённые."""
+    """PATCH /tasks/{id} обновляет разрешённые поля, а запрещённые не изменяются."""
     create_resp = client.post("/tasks", json={
         "title": "Исходная задача",
         "priority": "low"
@@ -30,8 +30,6 @@ def test_update_task_success(client):
     update_resp = client.patch(f"/tasks/{task_id}", json={
         "title": "Обновлённая задача",
         "priority": "high",
-        "id": 999,
-        "created_at": "2020-01-01T00:00:00Z"
     })
 
     assert update_resp.status_code == 200
@@ -40,3 +38,10 @@ def test_update_task_success(client):
     assert data["priority"] == "high"
     assert data["id"] == task_id
     assert data["created_at"] == original_created_at
+
+
+def test_get_nonexistent_task(client):
+    """Проверяет, что запрос несуществующей задачи возвращает 404."""
+    response = client.get("/tasks/999")
+    assert response.status_code == 404
+    assert "detail" in response.json()
