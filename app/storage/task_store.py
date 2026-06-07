@@ -69,5 +69,13 @@ class TaskStore:
         self._tasks.clear()
         self._next_id = 1
 
+    def complete(self, task_id: int) -> dict | None:
+        """Закрывает задачу. Возвращает обновлённую задачу или None, если не найдена."""
+        task = self._tasks.get(task_id)
+        if task is None:
+            return None
+        task["status"] = "DONE"
+        return task
+
 
 task_store = TaskStore()  # type: ignore[no-untyped-call]

@@ -9,10 +9,10 @@ from app.dependencies import get_comment_service
 from app.models import CommentCreate, CommentResponse
 from app.services.comment_service import CommentService
 
-router = APIRouter(prefix="/comments", tags=["comments"])
+router = APIRouter(prefix="/tasks", tags=["comments"])
 
 
-@router.post("/{task_id}", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/{task_id}/comments", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
 async def create_comment(
     task_id: int,
     comment: CommentCreate,
@@ -24,7 +24,7 @@ async def create_comment(
     return service.create_comment(data)
 
 
-@router.get("/{task_id}", response_model=list[CommentResponse])
+@router.get("/{task_id}/comments", response_model=list[CommentResponse])
 async def list_comments(
     task_id: int,
     service: CommentService = Depends(get_comment_service),

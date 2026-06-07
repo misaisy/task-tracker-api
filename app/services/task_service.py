@@ -8,7 +8,7 @@ import io
 import logging
 from datetime import UTC, datetime
 
-from app.exceptions import TaskNotFoundError, ValidationError
+from app.exceptions import ConflictError, TaskNotFoundError, ValidationError
 from app.models import TaskUpdate
 from app.storage.task_store import TaskStore
 
@@ -26,7 +26,9 @@ class TaskService:
         status: str | None = None,
         priority: str | None = None,
         page: int = 1,
-        page_size: int = 20
+        page_size: int = 20,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
     ) -> dict:
         """
         Возвращает список задач с фильтрацией и пагинацией.
@@ -38,6 +40,19 @@ class TaskService:
 
         if priority:
             tasks = [t for t in tasks if t["priority"] == priority]
+
+        allowed_sort_fields = {"created_at", "priority", "status"}
+        reverse = sort_order.lower() == "desc"
+        if sort_by not in allowed_sort_fields:
+            sort_by = "created_at"
+        if sort_by == "priority":
+            priority_order = {"low": 0, "medium": 1, "high": 2}
+            tasks.sort(key=lambda t: priority_order.get(t.get("priority", "medium"), 1), reverse=reverse)
+        elif sort_by == "status":
+            status_order = {"TODO": 0, "IN_PROGRESS": 1, "REVIEW": 2, "DONE": 3, "ARCHIVED": 4}
+            tasks.sort(key=lambda t: status_order.get(t.get("status", "TODO"), 0), reverse=reverse)
+        else:
+            tasks.sort(key=lambda t: t.get(sort_by, ""), reverse=reverse)
 
         total = len(tasks)
         pages = (total + page_size - 1) // page_size
@@ -166,3 +181,17 @@ class TaskService:
             "format": "json",
             "tasks": tasks,
         }
+
+    def complete_task(self, task_id: int) -> dict:
+        """Закрывает задачу. Нельзя закрыть архивную или уже закрытую."""
+        task = self.get_task_by_id(task_id)
+
+        if task.get("status") == "DONE":
+            raise ConflictError("Task is already done")
+        if task.get("status") == "archived":
+            raise ConflictError("Cannot complete archived task")
+
+        result = self.store.complete(task_id)
+
+        logger.info("Task completed: id=%d", task_id)
+        return result

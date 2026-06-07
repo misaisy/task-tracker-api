@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 
 from app.exceptions import (
     CommentNotFoundError,
+    ConflictError,
     TaskNotFoundError,
     TaskTrackerError,
     UserNotFoundError,
@@ -46,5 +47,12 @@ def validation_error_handler(request: Request, exc: ValidationError) -> JSONResp
     """Обработчик: ошибка валидации - 422."""
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": str(exc)},
+    )
+
+
+def conflict_error_handler(request: Request, exc: ConflictError) -> JSONResponse:
+    return JSONResponse(
+        status_code=status.HTTP_409_CONFLICT,
         content={"detail": str(exc)},
     )

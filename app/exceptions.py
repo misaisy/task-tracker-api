@@ -42,3 +42,8 @@ class CommentCreationError(TaskTrackerError):
 class ValidationError(TaskTrackerError):
     """Ошибка валидации данных."""
     pass
+
+
+class ConflictError(TaskTrackerError):
+    """Конфликт состояния."""
+    pass

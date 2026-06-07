@@ -19,14 +19,18 @@ async def list_tasks(
     priority: str | None = Query(default=None, description="Фильтр по приоритету"),
     page: int = Query(default=1, ge=1, description="Номер страницы"),
     page_size: int = Query(default=20, ge=1, le=100, description="Размер страницы"),
+    sort_by: str = Query(default="created_at", description="Поле для сортировки"),
+    sort_order: str = Query(default="desc", description="Направление сортировки"),
     service: TaskService = Depends(get_task_service),
 ):
-    """Возвращает список задач с фильтрацией и пагинацией."""
+    """Возвращает список задач с фильтрацией, сортировкой и пагинацией."""
     return service.get_all_tasks(
         status=status,
         priority=priority,
         page=page,
         page_size=page_size,
+        sort_by=sort_by,
+        sort_order=sort_order,
     )
 
 
@@ -66,6 +70,15 @@ async def archive_task(
 ):
     """Архивирует задачу."""
     return service.archive_task(task_id)
+
+
+@router.post("/{task_id}/complete", response_model=TaskResponse)
+async def complete_task(
+    task_id: int,
+    service: TaskService = Depends(get_task_service),
+):
+    """Закрывает задачу."""
+    return service.complete_task(task_id)
 
 
 @router.get("/summary", response_model=TaskSummaryResponse)
