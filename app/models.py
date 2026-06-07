@@ -24,6 +24,7 @@ class TaskCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=1000)
     priority: str = Field(default="medium", pattern="^(low|medium|high)$")
+    owner_id: int | None = Field(default=None, gt=0)
     model_config = ConfigDict(extra="forbid")
 
 
@@ -35,6 +36,10 @@ class TaskResponse(BaseModel):
     priority: str
     status: str
     created_at: datetime
+    updated_at: datetime | None = None
+    closed_at: datetime | None = None
+    owner_id: int | None = None
+    assignee_id: int | None = None
 
 
 class TaskUpdate(BaseModel):
@@ -91,6 +96,7 @@ class UserResponse(BaseModel):
 class CommentCreate(BaseModel):
     """Модель для создания комментария."""
     text: str = Field(..., min_length=1, max_length=1000)
+    author_id: int = Field(..., gt=0, description="ID автора комментария")
     model_config = ConfigDict(extra="forbid")
 
 
@@ -99,6 +105,7 @@ class CommentResponse(BaseModel):
     id: int
     task_id: int
     text: str
+    author_id: int
     created_at: datetime
 
 
@@ -114,3 +121,14 @@ class TaskExportResponse(BaseModel):
     exported_at: str
     format: str
     tasks: list[TaskResponse]
+
+
+class TaskHistoryResponse(BaseModel):
+    """Запись истории изменений задачи."""
+    id: int
+    task_id: int
+    field: str
+    old_value: str | None
+    new_value: str | None
+    changed_at: datetime
+    changed_by: int | None = None

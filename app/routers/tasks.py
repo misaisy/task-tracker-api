@@ -7,7 +7,15 @@ from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from app.dependencies import get_task_service
-from app.models import AssignRequest, TaskCreate, TaskListResponse, TaskResponse, TaskSummaryResponse, TaskUpdate
+from app.models import (
+    AssignRequest,
+    TaskCreate,
+    TaskHistoryResponse,
+    TaskListResponse,
+    TaskResponse,
+    TaskSummaryResponse,
+    TaskUpdate,
+)
 from app.services.task_service import TaskService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -111,3 +119,13 @@ async def get_task(
 ):
     """Возвращает задачу по ID."""
     return service.get_task_by_id(task_id)
+
+
+@router.get("/{task_id}/history", response_model=list[TaskHistoryResponse])
+async def get_task_history(
+    task_id: int,
+    service: TaskService = Depends(get_task_service),
+):
+    """Возвращает историю изменений задачи."""
+    service.get_task_by_id(task_id)
+    return service.history_store.get_by_task_id(task_id)

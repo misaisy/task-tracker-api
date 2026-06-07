@@ -19,6 +19,7 @@ class CommentStore:
             "id": self._next_id,
             "task_id": comment_data["task_id"],
             "text": comment_data["text"],
+            "author_id": comment_data["author_id"],
             "created_at": datetime.now(UTC),
         }
         self._comments[self._next_id] = comment
