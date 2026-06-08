@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    env_file:
+      - .env
+
+  test:
+    build: .
+    command: pytest
+    env_file:
+      - .env
