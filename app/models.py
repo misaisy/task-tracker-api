@@ -19,22 +19,23 @@ class ErrorResponse(BaseModel):
     details: str | list[ErrorDetail]
 
 
-class TaskCreate(BaseModel):
-    """Модель для создания задачи."""
+class TaskBase(BaseModel):
+    """Общие поля для всех моделей задачи."""
     title: str = Field(..., min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=1000)
     priority: str = Field(default="medium", pattern="^(low|medium|high)$")
+    status: str = Field(default="TODO")
+
+
+class TaskCreate(TaskBase):
+    """Модель для создания задачи."""
     owner_id: int | None = Field(default=None, gt=0)
     model_config = ConfigDict(extra="forbid")
 
 
-class TaskResponse(BaseModel):
+class TaskResponse(TaskBase):
     """Модель ответа с данными задачи."""
     id: int
-    title: str
-    description: str | None
-    priority: str
-    status: str
     created_at: datetime
     updated_at: datetime | None = None
     closed_at: datetime | None = None
@@ -52,7 +53,7 @@ class TaskUpdate(BaseModel):
 
     @model_validator(mode="after")
     def check_title_not_null(self) -> "TaskUpdate":  # noqa: UP037
-        """Проверяет, что title не установлен в null явно."""
+        """Проверяет, что title не установлен в null."""
         if "title" in self.model_fields_set and self.title is None:
             raise ValueError("title не может быть null")
         return self
@@ -131,4 +132,3 @@ class TaskHistoryResponse(BaseModel):
     old_value: str | None
     new_value: str | None
     changed_at: datetime
-    changed_by: int | None = None

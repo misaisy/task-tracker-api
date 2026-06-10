@@ -21,7 +21,6 @@ class TaskHistoryStore:
             "old_value": old_value,
             "new_value": new_value,
             "changed_at": datetime.now(UTC),
-            "changed_by": changed_by,
         }
         self._history.setdefault(task_id, []).append(entry)
         self._next_id += 1

@@ -8,10 +8,11 @@ import io
 import logging
 from datetime import UTC, datetime
 
-from app.exceptions import ConflictError, TaskNotFoundError, ValidationError
+from app.exceptions import ConflictError, TaskNotFoundError, UserNotFoundError, ValidationError
 from app.models import TaskUpdate
 from app.storage.task_history_store import TaskHistoryStore
 from app.storage.task_store import TaskStore
+from app.storage.user_store import UserStore
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +20,10 @@ logger = logging.getLogger(__name__)
 class TaskService:
     """Сервис для работы с задачами."""
 
-    def __init__(self, store: TaskStore, history_store: TaskHistoryStore):
+    def __init__(self, store: TaskStore, history_store: TaskHistoryStore, user_store: UserStore):
         self.store = store
         self.history_store = history_store
+        self.user_store = user_store
 
     def get_all_tasks(
         self,
@@ -84,6 +86,12 @@ class TaskService:
 
     def create_task(self, task_data: dict) -> dict:
         """Создаёт новую задачу и возвращает её."""
+        owner_id = task_data.get("owner_id")
+        if owner_id is not None:
+            user = self.user_store.get_by_id(owner_id)
+            if user is None:
+                raise UserNotFoundError(owner_id)
+
         task = self.store.add(task_data)
         logger.info("Task created: id=%d, title=%s", task["id"], task["title"])
         return task
@@ -97,14 +105,11 @@ class TaskService:
         if task.get("status") == "archived":
             raise ValidationError("Cannot modify archived task")
 
-        forbidden_fields = {"id", "created_at", "updated_at", "closed_at", "owner_id"}
+        changes = update_data.model_dump(exclude_unset=True)
 
-        for field in update_data.model_fields_set:
-            if field in forbidden_fields:
-                continue
-
-            value = getattr(update_data, field)
+        for field, value in changes.items:
             old_val = task.get(field)
+
             if field == "description" and value is None:
                 task["description"] = None
                 new_val = None
@@ -115,6 +120,7 @@ class TaskService:
                 continue
 
         self._record_change(task_id, field, old_val, new_val)
+
         logger.info("Task updated: id=%d, fields=%s", task_id, update_data.model_fields_set)
         return task
 
@@ -126,6 +132,10 @@ class TaskService:
 
         if task.get("status") == "archived":
             raise ConflictError("Cannot assign archived task")
+
+        user = self.user_store.get_by_id(user_id)
+        if user is None:
+            raise UserNotFoundError(user_id)
 
         old_assignee = task.get("assignee_id")
         old_status = task.get("status")

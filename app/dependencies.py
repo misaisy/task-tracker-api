@@ -10,7 +10,7 @@ from app.storage.user_store import user_store
 
 
 def get_task_service() -> TaskService:
-    return TaskService(store=task_store, history_store=task_history_store)
+    return TaskService(store=task_store, history_store=task_history_store, user_store=user_store)
 
 
 def get_user_service() -> UserService:

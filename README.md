@@ -1,11 +1,12 @@
 # Task Tracker API
 
-Минимальный сервис для отслеживания задач.
+Сервис для управления задачами.
 
 ## Требования
 
 - Python 3.11+
 - pip
+- Docker и Docker Compose (опционально, для контейнерного запуска)
 
 ## Локальный запуск
 
@@ -32,6 +33,7 @@ pip install -r requirements.txt
 ```
 cp .env.example .env
 ```
+
 При необходимости отредактируйте `.env`:
 - `APP_HOST=127.0.0.1` — хост
 - `APP_PORT=8000` — порт
@@ -39,10 +41,6 @@ cp .env.example .env
 - `LOG_LEVEL=debug` — уровень логирования
 
 ### 5. Запустите сервер
-
-Запуск по умолчанию стоит в `dev` 
-
-Для того чтобы сменить режим на `test` или обратно на `dev` необходимо ввести `$env:APP_ENV="test"` или `$env:APP_ENV="dev"` соответственно
 
 Команда для запуска:
 ```
@@ -58,9 +56,81 @@ python run.py
 ```
 curl http://127.0.0.1:8000/health
 ```
+
 Ожидаемый ответ:
 
 `{"status":"ok"}`
 
 Swagger UI доступен после запуска:
 `http://127.0.0.1:8000/docs`
+
+### Запуск тестов
+
+```
+pytest tests/ -v
+```
+
+## Запуск через Docker
+
+### Сборка и запуск
+
+```
+docker compose up -d app
+```
+
+### Проверка
+
+```
+curl http://127.0.0.1:8000/health
+```
+
+### Тесты
+
+```
+docker compose run test
+```
+
+### Управление
+
+```
+docker compose stop                 # остановить
+docker compose down                 # остановить и удалить контейнеры
+docker compose build --no-cache app # пересобрать образ
+docker compose logs -f app          # логи в реальном времени
+```
+
+### Основные эндпоинты
+
+## Задачи
+
+GET	  /tasks                Список задач с фильтрацией, сортировкой и пагинацией
+POST  /tasks	            Создать задачу
+GET	  /tasks/{id}	        Получить задачу по ID
+PATCH /tasks/{id}	        Частично обновить задачу
+POST  /tasks/{id}/assign	Назначить исполнителя
+POST  /tasks/{id}/complete  Закрыть задачу
+POST  /tasks/{id}/archive	Архивировать задачу
+GET	  /tasks/{id}/history	История изменений задачи
+GET	  /tasks/summary	    Сводка по статусам и приоритетам
+GET	  /tasks/export	        Выгрузка задач в JSON или CSV
+
+## Пользователи
+
+GET	  /users	   Список пользователей
+POST  /users	   Создать пользователя
+GET	  /users/{id}  Получить пользователя по ID
+
+## Комментарии
+
+GET	  /tasks/{id}/comments  Комментарии к задаче
+POST  /tasks/{id}/comments	Добавить комментарий
+
+## Полный API-контракт
+docs/API.md
+
+### Линтеры и проверка типов
+
+```
+ruff check . --fix  # линтинг и автофикс
+mypy app/           # проверка типов
+```
