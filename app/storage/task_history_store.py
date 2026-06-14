@@ -12,7 +12,6 @@ class TaskHistoryStore:
         field: str,
         old_value: str | None,
         new_value: str | None,
-        changed_by: int | None = None
     ) -> dict:
         entry = {
             "id": self._next_id,

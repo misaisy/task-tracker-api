@@ -18,7 +18,7 @@ def get_user_service() -> UserService:
 
 
 def get_comment_service() -> CommentService:
-    return CommentService(store=comment_store, user_store=user_store)
+    return CommentService(store=comment_store, user_store=user_store, task_store=task_store)
 
 
 def get_settings() -> Settings:

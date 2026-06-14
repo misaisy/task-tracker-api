@@ -8,6 +8,18 @@ import io
 import logging
 from datetime import UTC, datetime
 
+from app.constants import (
+    DEFAULT_PRIORITY,
+    DEFAULT_STATUS,
+    PRIORITY_HIGH,
+    PRIORITY_LOW,
+    PRIORITY_MEDIUM,
+    TASK_STATUS_ARCHIVED,
+    TASK_STATUS_DONE,
+    TASK_STATUS_IN_PROGRESS,
+    TASK_STATUS_REVIEW,
+    TASK_STATUS_TODO,
+)
 from app.exceptions import ConflictError, TaskNotFoundError, UserNotFoundError, ValidationError
 from app.models import TaskUpdate
 from app.storage.task_history_store import TaskHistoryStore
@@ -50,11 +62,17 @@ class TaskService:
         if sort_by not in allowed_sort_fields:
             sort_by = "created_at"
         if sort_by == "priority":
-            priority_order = {"low": 0, "medium": 1, "high": 2}
-            tasks.sort(key=lambda t: priority_order.get(t.get("priority", "medium"), 1), reverse=reverse)
+            priority_order = {PRIORITY_LOW: 0, PRIORITY_MEDIUM: 1, PRIORITY_HIGH: 2}
+            tasks.sort(key=lambda t: priority_order.get(t.get("priority", DEFAULT_PRIORITY), 1), reverse=reverse)
         elif sort_by == "status":
-            status_order = {"TODO": 0, "IN_PROGRESS": 1, "REVIEW": 2, "DONE": 3, "ARCHIVED": 4}
-            tasks.sort(key=lambda t: status_order.get(t.get("status", "TODO"), 0), reverse=reverse)
+            status_order = {
+                TASK_STATUS_TODO: 0,
+                TASK_STATUS_IN_PROGRESS: 1,
+                TASK_STATUS_REVIEW: 2,
+                TASK_STATUS_DONE: 3,
+                TASK_STATUS_ARCHIVED: 4
+            }
+            tasks.sort(key=lambda t: status_order.get(t.get("status", DEFAULT_STATUS), 0), reverse=reverse)
         else:
             tasks.sort(key=lambda t: t.get(sort_by, ""), reverse=reverse)
 
@@ -102,12 +120,12 @@ class TaskService:
         """
         task = self.get_task_by_id(task_id)
 
-        if task.get("status") == "archived":
+        if task.get("status") == TASK_STATUS_ARCHIVED:
             raise ValidationError("Cannot modify archived task")
 
         changes = update_data.model_dump(exclude_unset=True)
 
-        for field, value in changes.items:
+        for field, value in changes.items():
             old_val = task.get(field)
 
             if field == "description" and value is None:
@@ -118,8 +136,7 @@ class TaskService:
                 new_val = value
             else:
                 continue
-
-        self._record_change(task_id, field, old_val, new_val)
+            self._record_change(task_id, field, old_val, new_val)
 
         logger.info("Task updated: id=%d, fields=%s", task_id, update_data.model_fields_set)
         return task
@@ -130,7 +147,7 @@ class TaskService:
         """
         task = self.get_task_by_id(task_id)
 
-        if task.get("status") == "archived":
+        if task.get("status") == TASK_STATUS_ARCHIVED:
             raise ConflictError("Cannot assign archived task")
 
         user = self.user_store.get_by_id(user_id)
@@ -170,15 +187,22 @@ class TaskService:
         """Возвращает сводку по задачам: количество по статусам и приоритетам."""
         tasks = self.store.get_all()
 
-        by_status = {"TODO": 0, "IN_PROGRESS": 0, "REVIEW": 0, "DONE": 0, "ARCHIVED": 0}
-        by_priority = {"low": 0, "medium": 0, "high": 0}
+        by_status = {
+            TASK_STATUS_TODO: 0,
+            TASK_STATUS_IN_PROGRESS: 0,
+            TASK_STATUS_REVIEW: 0,
+            TASK_STATUS_DONE: 0,
+            TASK_STATUS_ARCHIVED: 0
+        }
+
+        by_priority = {PRIORITY_LOW: 0, PRIORITY_MEDIUM: 0, PRIORITY_HIGH: 0}
 
         for task in tasks:
-            status = task.get("status", "TODO")
+            status = task.get("status", DEFAULT_STATUS)
             if status in by_status:
                 by_status[status] += 1
 
-            priority = task.get("priority", "medium")
+            priority = task.get("priority", DEFAULT_PRIORITY)
             if priority in by_priority:
                 by_priority[priority] += 1
 
@@ -217,9 +241,9 @@ class TaskService:
         """Закрывает задачу. Нельзя закрыть архивную или уже закрытую."""
         task = self.get_task_by_id(task_id)
 
-        if task.get("status") == "DONE":
+        if task.get("status") == TASK_STATUS_DONE:
             raise ConflictError("Task is already done")
-        if task.get("status") == "archived":
+        if task.get("status") == TASK_STATUS_ARCHIVED:
             raise ConflictError("Cannot complete archived task")
 
         old_status = task.get("status")

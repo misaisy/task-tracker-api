@@ -60,7 +60,7 @@ def comment_not_found_handler(request: Request, exc: CommentNotFoundError) -> JS
 def validation_error_handler(request: Request, exc: ValidationError) -> JSONResponse:
     """Обработчик: ошибка валидации - 422."""
     return JSONResponse(
-        status_code=status.HTTP_409_CONFLICT,
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=ErrorResponse(
             error_code="VALIDATION_ERROR",
             details=str(exc),

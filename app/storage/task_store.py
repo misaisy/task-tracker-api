@@ -5,7 +5,14 @@
 """
 from datetime import UTC, datetime
 
-from app.constants import TASK_STATUS_TODO
+from app.constants import (
+    DEFAULT_PRIORITY,
+    DEFAULT_STATUS,
+    TASK_STATUS_ARCHIVED,
+    TASK_STATUS_DONE,
+    TASK_STATUS_IN_PROGRESS,
+    TASK_STATUS_TODO,
+)
 
 
 class TaskStore:
@@ -22,8 +29,8 @@ class TaskStore:
             "id": self._next_id,
             "title": task_data["title"],
             "description": task_data.get("description"),
-            "priority": task_data.get("priority", "medium"),
-            "status": TASK_STATUS_TODO,
+            "priority": task_data.get("priority", DEFAULT_PRIORITY),
+            "status": DEFAULT_STATUS,
             "created_at": datetime.now(UTC),
             "updated_at": datetime.now(UTC),
             "closed_at": None,
@@ -55,8 +62,8 @@ class TaskStore:
         if task is None:
             return None
         task["assignee_id"] = user_id
-        if task.get("status") == "TODO":
-            task["status"] = "IN_PROGRESS"
+        if task.get("status") == TASK_STATUS_TODO:
+            task["status"] = TASK_STATUS_IN_PROGRESS
         self._touch(task_id)
         return task
 
@@ -65,9 +72,9 @@ class TaskStore:
         task = self._tasks.get(task_id)
         if task is None:
             return None
-        if task.get("status") == "archived":
+        if task.get("status") == TASK_STATUS_ARCHIVED:
             return None
-        task["status"] = "archived"
+        task["status"] = TASK_STATUS_ARCHIVED
         self._touch(task_id)
         return task
 
@@ -81,7 +88,7 @@ class TaskStore:
         task = self._tasks.get(task_id)
         if task is None:
             return None
-        task["status"] = "DONE"
+        task["status"] = TASK_STATUS_DONE
         task["closed_at"] = datetime.now(UTC)
         self._touch(task_id)
         return task

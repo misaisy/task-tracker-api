@@ -1,5 +1,5 @@
 """
-Сервисный слой для задач.
+Сервисный слой для пользователей.
 Слой: бизнес-логика (services).
 Зависит от: storage.
 """
@@ -18,7 +18,7 @@ class UserService:
     def get_all_users(self) -> list[dict]:
         return self.store.get_all()
 
-    def get_user_by_id(self, user_id: int) -> dict | None:
+    def get_user_by_id(self, user_id: int) -> dict:
         user = self.store.get_by_id(user_id)
         if user is None:
             raise UserNotFoundError(user_id)

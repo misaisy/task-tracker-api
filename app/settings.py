@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
 
-    APP_HOST: str = Field(default="127.0.0.1")
+    APP_HOST: str = Field(default="0.0.0.0")
 
     APP_PORT: int = Field(default=8000, ge=1024, le=65535)
 
