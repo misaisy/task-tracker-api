@@ -17,6 +17,10 @@ class Settings(BaseSettings):
 
     LOG_LEVEL: str = Field(default="INFO")
 
+    DATABASE_URL: str = Field(
+        default="postgresql://user:password@localhost:5432/taskdb"
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

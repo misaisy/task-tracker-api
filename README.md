@@ -98,9 +98,39 @@ docker compose build --no-cache app # пересобрать образ
 docker compose logs -f app          # логи в реальном времени
 ```
 
-### Основные эндпоинты
+### Миграции
 
-## Задачи
+Создать новую миграцию после изменения моделей:
+```
+docker compose run --rm app alembic revision --autogenerate -m "описание"
+```
+
+Применить миграции:
+```
+docker compose run --rm app alembic upgrade head
+```
+
+### Проверка
+
+Запустить сервисы:
+```
+docker compose up -d
+```
+
+Убедиться что контейнер db запущен:
+```
+docker ps
+```
+
+Проверить, что БД доступна:
+```
+docker compose exec app python -c "from app.db import get_connection; conn = get_connection(); print(conn); conn.close()"
+```
+
+
+## Основные эндпоинты
+
+### Задачи
 
 GET	  /tasks                Список задач с фильтрацией, сортировкой и пагинацией
 POST  /tasks	            Создать задачу
@@ -113,21 +143,21 @@ GET	  /tasks/{id}/history	История изменений задачи
 GET	  /tasks/summary	    Сводка по статусам и приоритетам
 GET	  /tasks/export	        Выгрузка задач в JSON или CSV
 
-## Пользователи
+### Пользователи
 
 GET	  /users	   Список пользователей
 POST  /users	   Создать пользователя
 GET	  /users/{id}  Получить пользователя по ID
 
-## Комментарии
+### Комментарии
 
 GET	  /tasks/{id}/comments  Комментарии к задаче
 POST  /tasks/{id}/comments	Добавить комментарий
 
-## Полный API-контракт
+### Полный API-контракт
 docs/API.md
 
-### Линтеры и проверка типов
+## Линтеры и проверка типов
 
 ```
 ruff check . --fix  # линтинг и автофикс

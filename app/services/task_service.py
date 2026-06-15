@@ -47,34 +47,14 @@ class TaskService:
         sort_order: str = "desc",
     ) -> dict:
         """
-        Возвращает список задач с фильтрацией и пагинацией.
+        Возвращает список задач с фильтрацией, сортировкой и пагинацией.
         """
-        tasks = self.store.get_all()
-
-        if status:
-            tasks = [t for t in tasks if t["status"] == status]
-
-        if priority:
-            tasks = [t for t in tasks if t["priority"] == priority]
-
-        allowed_sort_fields = {"created_at", "priority", "status"}
-        reverse = sort_order.lower() == "desc"
-        if sort_by not in allowed_sort_fields:
-            sort_by = "created_at"
-        if sort_by == "priority":
-            priority_order = {PRIORITY_LOW: 0, PRIORITY_MEDIUM: 1, PRIORITY_HIGH: 2}
-            tasks.sort(key=lambda t: priority_order.get(t.get("priority", DEFAULT_PRIORITY), 1), reverse=reverse)
-        elif sort_by == "status":
-            status_order = {
-                TASK_STATUS_TODO: 0,
-                TASK_STATUS_IN_PROGRESS: 1,
-                TASK_STATUS_REVIEW: 2,
-                TASK_STATUS_DONE: 3,
-                TASK_STATUS_ARCHIVED: 4
-            }
-            tasks.sort(key=lambda t: status_order.get(t.get("status", DEFAULT_STATUS), 0), reverse=reverse)
-        else:
-            tasks.sort(key=lambda t: t.get(sort_by, ""), reverse=reverse)
+        tasks = self.store.get_filtered_tasks(
+            status=status,
+            priority=priority,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
 
         total = len(tasks)
         pages = (total + page_size - 1) // page_size
@@ -83,8 +63,8 @@ class TaskService:
         items = tasks[start:end]
 
         logger.debug(
-            "Getting tasks: status=%s, priority=%s, page=%d, total=%d",
-            status, priority, page, total,
+            "Getting tasks: status=%s, priority=%s, sort=%s %s, page=%d, total=%d",
+            status, priority, sort_by, sort_order, page, total,
         )
 
         return {
@@ -184,33 +164,7 @@ class TaskService:
         return result
 
     def get_summary(self) -> dict:
-        """Возвращает сводку по задачам: количество по статусам и приоритетам."""
-        tasks = self.store.get_all()
-
-        by_status = {
-            TASK_STATUS_TODO: 0,
-            TASK_STATUS_IN_PROGRESS: 0,
-            TASK_STATUS_REVIEW: 0,
-            TASK_STATUS_DONE: 0,
-            TASK_STATUS_ARCHIVED: 0
-        }
-
-        by_priority = {PRIORITY_LOW: 0, PRIORITY_MEDIUM: 0, PRIORITY_HIGH: 0}
-
-        for task in tasks:
-            status = task.get("status", DEFAULT_STATUS)
-            if status in by_status:
-                by_status[status] += 1
-
-            priority = task.get("priority", DEFAULT_PRIORITY)
-            if priority in by_priority:
-                by_priority[priority] += 1
-
-        return {
-            "total": len(tasks),
-            "by_status": by_status,
-            "by_priority": by_priority,
-        }
+        return self.store.get_summary()
 
     def export_tasks(self, format: str = "json") -> dict | str:
         """Выгружает все задачи в указанном формате."""

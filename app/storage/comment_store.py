@@ -1,36 +1,62 @@
 """
 Хранилище комментариев.
 Слой: доступ к данным (storage).
-Зависит от: constants (только константы).
 """
 from datetime import UTC, datetime
-
+from sqlalchemy import text
+from app.db import get_connection
 
 class CommentStore:
-    _comments: dict[int, dict]
-    _next_id: int
-
-    def __init__(self) -> None:
-        self._comments = {}
-        self._next_id = 1
-
     def add(self, comment_data: dict) -> dict:
-        comment = {
-            "id": self._next_id,
-            "task_id": comment_data["task_id"],
-            "text": comment_data["text"],
-            "author_id": comment_data["author_id"],
-            "created_at": datetime.now(UTC),
-        }
-        self._comments[self._next_id] = comment
-        self._next_id += 1
-        return comment
+        conn = get_connection()
+        try:
+            result = conn.execute(
+                text("""
+                    INSERT INTO comments (task_id, author_id, text, created_at)
+                    VALUES (:task_id, :author_id, :text, :created_at)
+                    RETURNING id
+                """),
+                {
+                    "task_id": comment_data["task_id"],
+                    "author_id": comment_data["author_id"],
+                    "text": comment_data["text"],
+                    "created_at": datetime.now(UTC),
+                }
+            )
+            comment_id = result.scalar()
+            conn.commit()
+            return self.get_by_id(comment_id)
+        finally:
+            conn.close()
+
 
     def get_by_task_id(self, task_id: int) -> list[dict]:
-        return [c for c in self._comments.values() if c["task_id"] == task_id]
+        conn = get_connection()
+        try:
+            rows = conn.execute(
+                text("SELECT * FROM comments WHERE task_id = :task_id ORDER BY created_at"),
+                {"task_id": task_id}
+            ).fetchall()
+            return [dict(r._mapping) for r in rows]
+        finally:
+            conn.close()
+
 
     def get_all(self) -> list[dict]:
-        return list(self._comments.values())
+        conn = get_connection()
+        try:
+            rows = conn.execute(text("SELECT * FROM comments")).fetchall()
+            return [dict(r._mapping) for r in rows]
+        finally:
+            conn.close()
 
+
+    def clear(self):
+        conn = get_connection()
+        try:
+            conn.execute(text("DELETE FROM comments"))
+            conn.commit()
+        finally:
+            conn.close()
 
 comment_store = CommentStore()
