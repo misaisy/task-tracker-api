@@ -1,7 +1,16 @@
-import psycopg2
-
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
 from app.settings import settings
 
+engine = create_engine(
+    settings.DATABASE_URL,
+    echo=False,
+    future=True,
+)
 
-def get_connection():
-    return psycopg2.connect(settings.DATABASE_URL)
+SessionLocal = sessionmaker(
+    bind=engine,
+    autocommit=False,
+    autoflush=False,
+    future=True,
+)

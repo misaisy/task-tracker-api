@@ -7,6 +7,8 @@ import logging
 
 from app.exceptions import UserNotFoundError
 from app.storage.user_store import UserStore
+from sqlalchemy.exc import IntegrityError
+from app.exceptions import ConflictError
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,11 @@ class UserService:
         return user
 
     def create_user(self, user_data: dict) -> dict:
-        user = self.store.add(user_data)
+        try:
+            user = self.store.add(user_data)
+            self.store.commit()
+        except IntegrityError:
+            self.store.session.rollback()
+            raise ConflictError("User with this email already exists")
         logger.info("User created: id=%d, username=%s", user["id"], user["username"])
         return user

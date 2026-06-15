@@ -43,6 +43,9 @@ class TaskResponse(TaskBase):
     closed_at: datetime | None = None
     owner_id: int | None = None
     assignee_id: int | None = None
+    owner: UserResponse | None = None
+    assignee: UserResponse | None = None
+    comments: list[CommentResponse] = []
 
 
 class TaskUpdate(BaseModel):

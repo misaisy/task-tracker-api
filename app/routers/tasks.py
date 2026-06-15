@@ -118,7 +118,7 @@ async def get_task(
     service: TaskService = Depends(get_task_service),
 ):
     """Возвращает задачу по ID."""
-    return service.get_task_by_id(task_id)
+    return service.get_task_with_relations(task_id)
 
 
 @router.get("/{task_id}/history", response_model=list[TaskHistoryResponse])

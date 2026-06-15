@@ -1,229 +1,209 @@
 """
-Хранилище задач.
+Хранилище задач (ORM).
 Слой: доступ к данным (storage).
 """
 from datetime import UTC, datetime
 from typing import Optional
-from sqlalchemy import text
-from app.db import get_connection
+from sqlalchemy import select, func, case, and_
+from sqlalchemy.orm import Session
+from app.models_sql import Task
 from app.constants import DEFAULT_STATUS, DEFAULT_PRIORITY
+from sqlalchemy.orm import joinedload, selectinload
+
 
 class TaskStore:
-    def add(self, task_data: dict) -> dict:
-        conn = get_connection()
-        try:
-            result = conn.execute(
-                text("""
-                    INSERT INTO tasks (title, description, priority, status, owner_id, created_at, updated_at)
-                    VALUES (:title, :description, :priority, :status, :owner_id, :created_at, :updated_at)
-                    RETURNING id
-                """),
-                {
-                    "title": task_data["title"],
-                    "description": task_data.get("description"),
-                    "priority": task_data.get("priority", DEFAULT_PRIORITY),
-                    "status": DEFAULT_STATUS,
-                    "owner_id": task_data.get("owner_id"),
-                    "created_at": datetime.now(UTC),
-                    "updated_at": datetime.now(UTC),
-                }
-            )
-            task_id = result.scalar()
-            conn.commit()
-            return self.get_by_id(task_id)
-        finally:
-            conn.close()
+    def __init__(self, session: Session):
+        self.session = session
 
+    def add(self, task_data: dict) -> dict:
+        task = Task(
+            title=task_data["title"],
+            description=task_data.get("description"),
+            priority=task_data.get("priority", DEFAULT_PRIORITY),
+            status=DEFAULT_STATUS,
+            owner_id=task_data.get("owner_id"),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
+        )
+        self.session.add(task)
+        self.session.flush()  # получаем id без коммита
+        return self._to_dict(task)
 
     def get_all(self) -> list[dict]:
-        conn = get_connection()
-        try:
-            rows = conn.execute(text("SELECT * FROM tasks")).fetchall()
-            return [dict(r._mapping) for r in rows]
-        finally:
-            conn.close()
-
+        stmt = select(Task).order_by(Task.id)
+        tasks = self.session.execute(stmt).scalars().all()
+        return [self._to_dict(t) for t in tasks]
 
     def get_by_id(self, task_id: int) -> Optional[dict]:
-        conn = get_connection()
-        try:
-            row = conn.execute(text("SELECT * FROM tasks WHERE id = :id"), {"id": task_id}).fetchone()
-            return dict(row._mapping) if row else None
-        finally:
-            conn.close()
-
+        task = self.session.get(Task, task_id)
+        return self._to_dict(task) if task else None
 
     def update(self, task_id: int, data: dict) -> Optional[dict]:
-        conn = get_connection()
-        try:
-            pass
-        finally:
-            conn.close()
-
+        task = self.session.get(Task, task_id)
+        if not task:
+            return None
+        for field, value in data.items():
+            if hasattr(task, field) and field not in ("id", "created_at", "updated_at", "closed_at", "owner_id"):
+                setattr(task, field, value)
+        task.updated_at = datetime.now(UTC)
+        self.session.flush()
+        return self._to_dict(task)
 
     def assign(self, task_id: int, user_id: int) -> Optional[dict]:
-        conn = get_connection()
-        try:
-            conn.execute(
-                text("""
-                    UPDATE tasks
-                    SET assignee_id = :user_id,
-                        status = CASE WHEN status = :todo THEN :in_progress ELSE status END,
-                        updated_at = :now
-                    WHERE id = :id
-                """),
-                {
-                    "user_id": user_id,
-                    "todo": "TODO",
-                    "in_progress": "IN_PROGRESS",
-                    "now": datetime.now(UTC),
-                    "id": task_id,
-                }
-            )
-            conn.commit()
-            return self.get_by_id(task_id)
-        finally:
-            conn.close()
-
+        task = self.session.get(Task, task_id)
+        if not task:
+            return None
+        if task.status == "TODO":
+            task.status = "IN_PROGRESS"
+        task.assignee_id = user_id
+        task.updated_at = datetime.now(UTC)
+        self.session.flush()
+        return self._to_dict(task)
 
     def archive(self, task_id: int) -> Optional[dict]:
-        conn = get_connection()
-        try:
-            conn.execute(
-                text("""
-                    UPDATE tasks
-                    SET status = 'ARCHIVED',
-                        updated_at = :now
-                    WHERE id = :id AND status != 'ARCHIVED'
-                """),
-                {"now": datetime.now(UTC), "id": task_id}
-            )
-            conn.commit()
-            return self.get_by_id(task_id)
-        finally:
-            conn.close()
+        task = self.session.get(Task, task_id)
+        if not task:
+            return None
+        if task.status == "ARCHIVED":
+            return None
+        task.status = "ARCHIVED"
+        task.updated_at = datetime.now(UTC)
+        self.session.flush()
+        return self._to_dict(task)
 
+    def complete(self, task_id: int) -> Optional[dict]:
+        task = self.session.get(Task, task_id)
+        if not task:
+            return None
+        task.status = "DONE"
+        task.closed_at = datetime.now(UTC)
+        task.updated_at = datetime.now(UTC)
+        self.session.flush()
+        return self._to_dict(task)
 
     def clear(self):
-        conn = get_connection()
-        try:
-            conn.execute(text("DELETE FROM tasks"))
-            conn.commit()
-        finally:
-            conn.close()
-
-
-    def complete(self, task_id: int) -> dict | None:
-        conn = get_connection()
-        try:
-            result = conn.execute(
-                text("""
-                    UPDATE tasks
-                    SET status = 'DONE',
-                        closed_at = :closed_at,
-                        updated_at = :now
-                    WHERE id = :id
-                    RETURNING *
-                """),
-                {
-                    "closed_at": datetime.now(UTC),
-                    "now": datetime.now(UTC),
-                    "id": task_id,
-                }
-            )
-            conn.commit()
-            row = result.fetchone()
-            return dict(row._mapping) if row else None
-        finally:
-            conn.close()
-
-
-    def _touch(self, task_id: int) -> None:
-        conn = get_connection()
-        try:
-            conn.execute(
-                text("""
-                    UPDATE tasks
-                    SET updated_at = :now
-                    WHERE id = :id
-                """),
-                {"now": datetime.now(UTC), "id": task_id}
-            )
-            conn.commit()
-        finally:
-            conn.close()
-    
+        self.session.query(Task).delete()
 
     def get_filtered_tasks(
         self,
         status: str | None = None,
         priority: str | None = None,
         sort_by: str = "created_at",
-        sort_order: str = "desc"
+        sort_order: str = "desc",
     ) -> list[dict]:
-        conn = get_connection()
-        try:
-            query = "SELECT * FROM tasks"
-            params = {}
+        stmt = select(Task)
+        conditions = []
+        if status:
+            conditions.append(Task.status == status)
+        if priority:
+            conditions.append(Task.priority == priority)
+        if conditions:
+            stmt = stmt.where(and_(*conditions))
 
-            conditions = []
-            if status:
-                conditions.append("status = :status")
-                params["status"] = status
-            if priority:
-                conditions.append("priority = :priority")
-                params["priority"] = priority
+        order_direction = "desc" if sort_order.lower() == "desc" else "asc"
+        if sort_by == "priority":
+            order_col = case(
+                (Task.priority == "low", 0),
+                (Task.priority == "medium", 1),
+                (Task.priority == "high", 2),
+                else_=3,
+            )
+        elif sort_by == "status":
+            order_col = case(
+                (Task.status == "TODO", 0),
+                (Task.status == "IN_PROGRESS", 1),
+                (Task.status == "REVIEW", 2),
+                (Task.status == "DONE", 3),
+                (Task.status == "ARCHIVED", 4),
+                else_=5,
+            )
+        else:
+            order_col = Task.created_at
+        if order_direction == "desc":
+            order_col = order_col.desc()
+        stmt = stmt.order_by(order_col)
 
-            if conditions:
-                query += " WHERE " + " AND ".join(conditions)
-
-            allowed_sort_fields = {"created_at", "priority", "status"}
-            if sort_by not in allowed_sort_fields:
-                sort_by = "created_at"
-            order_direction = "DESC" if sort_order.lower() == "desc" else "ASC"
-            if sort_by == "priority":
-                query += f" ORDER BY CASE priority WHEN 'low' THEN 0 WHEN 'medium' THEN 1 WHEN 'high' THEN 2 END {order_direction}"
-            elif sort_by == "status":
-                query += f" ORDER BY CASE status WHEN 'TODO' THEN 0 WHEN 'IN_PROGRESS' THEN 1 WHEN 'REVIEW' THEN 2 WHEN 'DONE' THEN 3 WHEN 'ARCHIVED' THEN 4 END {order_direction}"
-            else:
-                query += f" ORDER BY created_at {order_direction}"
-
-            rows = conn.execute(text(query), params).fetchall()
-            return [dict(row._mapping) for row in rows]
-        finally:
-            conn.close()
-    
+        tasks = self.session.execute(stmt).scalars().all()
+        return [self._to_dict(t) for t in tasks]
 
     def get_summary(self) -> dict:
-        conn = get_connection()
-        try:
-            status_rows = conn.execute(
-                text("""
-                    SELECT status, COUNT(*) as count
-                    FROM tasks
-                    GROUP BY status
-                """)
-            ).fetchall()
-            by_status = {row.status: row.count for row in status_rows}
+        status_stmt = (
+            select(Task.status, func.count(Task.id))
+            .group_by(Task.status)
+        )
+        status_rows = self.session.execute(status_stmt).all()
+        by_status = {row.status: row.count for row in status_rows}
 
-            priority_rows = conn.execute(
-                text("""
-                    SELECT priority, COUNT(*) as count
-                    FROM tasks
-                    GROUP BY priority
-                """)
-            ).fetchall()
-            by_priority = {row.priority: row.count for row in priority_rows}
+        priority_stmt = (
+            select(Task.priority, func.count(Task.id))
+            .group_by(Task.priority)
+        )
+        priority_rows = self.session.execute(priority_stmt).all()
+        by_priority = {row.priority: row.count for row in priority_rows}
 
-            total_row = conn.execute(text("SELECT COUNT(*) FROM tasks")).fetchone()
-            total = total_row[0]
+        # Общее количество
+        total = self.session.scalar(select(func.count(Task.id)))
 
-            return {
-                "total": total,
-                "by_status": by_status,
-                "by_priority": by_priority,
+        return {
+            "total": total,
+            "by_status": by_status,
+            "by_priority": by_priority,
+        }
+    
+    def get_by_id_with_relations(self, task_id: int) -> Optional[dict]:
+        task = (
+            self.session.query(Task)
+            .options(
+                joinedload(Task.owner),
+                joinedload(Task.assignee),
+                selectinload(Task.comments)
+            )
+            .filter(Task.id == task_id)
+            .first()
+        )
+        if not task:
+            return None
+        return self._to_dict_with_relations(task)
+    
+    def commit(self):
+        self.session.commit()
+
+    def _to_dict_with_relations(self, task: Task) -> dict:
+        result = self._to_dict(task)
+        result["owner"] = self._user_to_dict(task.owner) if task.owner else None
+        result["assignee"] = self._user_to_dict(task.assignee) if task.assignee else None
+        result["comments"] = [
+            {
+                "id": c.id,
+                "task_id": c.task_id,
+                "text": c.text,
+                "author_id": c.author_id,
+                "created_at": c.created_at,
             }
-        finally:
-            conn.close()
+            for c in task.comments
+        ]
+        return result
 
-task_store = TaskStore()
+    def _user_to_dict(self, user) -> dict | None:
+        if not user:
+            return None
+        return {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "created_at": user.created_at,
+        }
+
+    def _to_dict(self, task: Task) -> dict:
+        return {
+            "id": task.id,
+            "title": task.title,
+            "description": task.description,
+            "priority": task.priority,
+            "status": task.status,
+            "created_at": task.created_at,
+            "updated_at": task.updated_at,
+            "closed_at": task.closed_at,
+            "owner_id": task.owner_id,
+            "assignee_id": task.assignee_id,
+        }

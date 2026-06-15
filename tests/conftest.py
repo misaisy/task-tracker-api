@@ -1,25 +1,36 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import text
 from app.main import app
-from app.db import get_connection
-from app.storage.user_store import user_store
+from app.db import SessionLocal
+from app.models_sql import Comment, Task, User, TaskHistory
+
 
 @pytest.fixture
 def client():
     return TestClient(app)
 
+
 @pytest.fixture(autouse=True)
 def clean_database():
-    conn = get_connection()
+    """Очищает все таблицы перед каждым тестом."""
+    db = SessionLocal()
     try:
-        conn.execute(text("DELETE FROM comments"))
-        conn.execute(text("DELETE FROM tasks"))
-        conn.execute(text("DELETE FROM users"))
-        conn.commit()
+        db.query(TaskHistory).delete()
+        db.query(Comment).delete()
+        db.query(Task).delete()
+        db.query(User).delete()
+        db.commit()
     finally:
-        conn.close()
+        db.close()
+
 
 @pytest.fixture
 def test_user():
-    return user_store.add({"username": "testuser", "email": "test@example.com"})
+    """Создаёт тестового пользователя через сервис."""
+    from app.storage.user_store import UserStore
+    db = SessionLocal()
+    store = UserStore(db)
+    user = store.add({"username": "testuser", "email": "test@example.com"})
+    db.commit()
+    db.close()
+    return user

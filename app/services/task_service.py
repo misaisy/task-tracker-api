@@ -9,16 +9,8 @@ import logging
 from datetime import UTC, datetime
 
 from app.constants import (
-    DEFAULT_PRIORITY,
-    DEFAULT_STATUS,
-    PRIORITY_HIGH,
-    PRIORITY_LOW,
-    PRIORITY_MEDIUM,
     TASK_STATUS_ARCHIVED,
     TASK_STATUS_DONE,
-    TASK_STATUS_IN_PROGRESS,
-    TASK_STATUS_REVIEW,
-    TASK_STATUS_TODO,
 )
 from app.exceptions import ConflictError, TaskNotFoundError, UserNotFoundError, ValidationError
 from app.models import TaskUpdate
@@ -30,8 +22,6 @@ logger = logging.getLogger(__name__)
 
 
 class TaskService:
-    """Сервис для работы с задачами."""
-
     def __init__(self, store: TaskStore, history_store: TaskHistoryStore, user_store: UserStore):
         self.store = store
         self.history_store = history_store
@@ -91,6 +81,7 @@ class TaskService:
                 raise UserNotFoundError(owner_id)
 
         task = self.store.add(task_data)
+        self.store.commit()
         logger.info("Task created: id=%d, title=%s", task["id"], task["title"])
         return task
 
@@ -118,6 +109,7 @@ class TaskService:
                 continue
             self._record_change(task_id, field, old_val, new_val)
 
+        self.store.commit()
         logger.info("Task updated: id=%d, fields=%s", task_id, update_data.model_fields_set)
         return task
 
@@ -147,6 +139,7 @@ class TaskService:
         if old_status != result["status"]:
             self._record_change(task_id, "status", old_status, result["status"])
 
+        self.store.commit()
         logger.info("Task assigned: task_id=%d, user_id=%d", task_id, user_id)
         return result  # type: ignore[return-value]
 
@@ -160,6 +153,7 @@ class TaskService:
             raise ConflictError("Task is already archived")
 
         self._record_change(task_id, "status", old_status, result["status"])
+        self.store.commit()
         logger.info("Task archived: task_id=%d", task_id)
         return result
 
@@ -204,6 +198,7 @@ class TaskService:
         result = self.store.complete(task_id)
         self._record_change(task_id, "status", old_status, result["status"])
 
+        self.store.commit()
         logger.info("Task completed: id=%d", task_id)
         return result
 
@@ -214,3 +209,10 @@ class TaskService:
             old_value=str(old_value) if old_value is not None else None,
             new_value=str(new_value) if new_value is not None else None,
         )
+    
+    def get_task_with_relations(self, task_id: int) -> dict:
+        """Возвращает задачу с владельцем, исполнителем и комментариями."""
+        task = self.store.get_by_id_with_relations(task_id)
+        if task is None:
+            raise TaskNotFoundError(task_id)
+        return task

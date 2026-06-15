@@ -32,6 +32,7 @@ class CommentService:
             raise UserNotFoundError(comment_data["author_id"])
 
         comment = self.store.add(comment_data)
+        self.store.commit()
         logger.info(
             "Comment created: id=%d, task_id=%d, author_id=%d",
             comment["id"], comment["task_id"], comment["author_id"])
