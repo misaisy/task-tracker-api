@@ -1,16 +1,20 @@
 """
-Хранилище истории изменений задач (ORM).
+Хранилище истории изменений задач.
 Слой: доступ к данным (storage).
 """
 from datetime import UTC, datetime
-from sqlalchemy.orm import Session
+
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models_sql import TaskHistory
 
+
 class TaskHistoryStore:
-    def __init__(self, session: Session):
+    def __init__(self, session: AsyncSession):
         self.session = session
 
-    def add_entry(
+    async def add_entry(
         self,
         task_id: int,
         field: str,
@@ -25,20 +29,21 @@ class TaskHistoryStore:
             changed_at=datetime.now(UTC),
         )
         self.session.add(entry)
-        self.session.flush()
+        await self.session.flush()
         return self._to_dict(entry)
 
-    def get_by_task_id(self, task_id: int) -> list[dict]:
-        entries = (
-            self.session.query(TaskHistory)
-            .filter(TaskHistory.task_id == task_id)
+    async def get_by_task_id(self, task_id: int) -> list[dict]:
+        stmt = (
+            select(TaskHistory)
+            .where(TaskHistory.task_id == task_id)
             .order_by(TaskHistory.changed_at)
-            .all()
         )
+        result = await self.session.execute(stmt)
+        entries = result.scalars().all()
         return [self._to_dict(e) for e in entries]
 
-    def clear(self):
-        self.session.query(TaskHistory).delete()
+    async def clear(self):
+        await self.session.execute(delete(TaskHistory))
 
     def _to_dict(self, entry: TaskHistory) -> dict:
         return {

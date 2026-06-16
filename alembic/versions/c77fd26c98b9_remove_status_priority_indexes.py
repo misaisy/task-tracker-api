@@ -1,15 +1,15 @@
-"""add_indexes
+"""remove_status_priority_indexes
 
-Revision ID: 5357d64d5264
-Revises: e1c1738d5da2
-Create Date: 2026-06-15 09:30:29.069184
+Revision ID: c77fd26c98b9
+Revises: 935838968b8c
+Create Date: 2026-06-16 20:01:47.654972
 
 """
 from collections.abc import Sequence
 
 # revision identifiers, used by Alembic.
-revision: str = '5357d64d5264'
-down_revision: str | Sequence[str] | None = 'e1c1738d5da2'
+revision: str = 'c77fd26c98b9'
+down_revision: str | Sequence[str] | None = '935838968b8c'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

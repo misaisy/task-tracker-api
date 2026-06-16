@@ -19,20 +19,20 @@ class CommentService:
         self.task_store = task_store
         self.user_store = user_store
 
-    def get_comments_by_task(self, task_id: int) -> list[dict]:
-        return self.store.get_by_task_id(task_id)
+    async def get_comments_by_task(self, task_id: int) -> list[dict]:
+        return await self.store.get_by_task_id(task_id)
 
-    def create_comment(self, comment_data: dict) -> dict:
-        task = self.task_store.get_by_id(comment_data["task_id"])
+    async def create_comment(self, comment_data: dict) -> dict:
+        task = await self.task_store.get_by_id(comment_data["task_id"])
         if task is None:
             raise TaskNotFoundError(comment_data["task_id"])
 
-        author = self.user_store.get_by_id(comment_data["author_id"])
+        author = await self.user_store.get_by_id(comment_data["author_id"])
         if author is None:
             raise UserNotFoundError(comment_data["author_id"])
 
-        comment = self.store.add(comment_data)
-        self.store.commit()
+        comment = await self.store.add(comment_data)
+        await self.store.commit()
         logger.info(
             "Comment created: id=%d, task_id=%d, author_id=%d",
             comment["id"], comment["task_id"], comment["author_id"])

@@ -21,7 +21,7 @@ async def create_comment(
     """Добавляет комментарий к задаче."""
     data = comment.model_dump()
     data["task_id"] = task_id
-    return service.create_comment(data)
+    return await service.create_comment(data)
 
 
 @router.get("/{task_id}/comments", response_model=list[CommentResponse])
@@ -30,4 +30,4 @@ async def list_comments(
     service: CommentService = Depends(get_comment_service),
 ):
     """Возвращает список комментариев к задаче."""
-    return service.get_comments_by_task(task_id)
+    return await service.get_comments_by_task(task_id)

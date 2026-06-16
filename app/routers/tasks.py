@@ -32,7 +32,7 @@ async def list_tasks(
     service: TaskService = Depends(get_task_service),
 ):
     """Возвращает список задач с фильтрацией, сортировкой и пагинацией."""
-    return service.get_all_tasks(
+    return await service.get_all_tasks(
         status=status,
         priority=priority,
         page=page,
@@ -48,7 +48,7 @@ async def create_task(
     service: TaskService = Depends(get_task_service),
 ):
     """Создаёт новую задачу."""
-    return service.create_task(task.model_dump())
+    return await service.create_task(task.model_dump())
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)
@@ -58,7 +58,7 @@ async def update_task(
     service: TaskService = Depends(get_task_service),
 ):
     """Частично обновляет задачу."""
-    return service.update_task(task_id, update)
+    return await service.update_task(task_id, update)
 
 
 @router.post("/{task_id}/assign", response_model=TaskResponse)
@@ -68,7 +68,7 @@ async def assign_task(
     service: TaskService = Depends(get_task_service),
 ):
     """Назначает исполнителя задаче."""
-    return service.assign_task(task_id, request.user_id)
+    return await service.assign_task(task_id, request.user_id)
 
 
 @router.post("/{task_id}/archive", response_model=TaskResponse)
@@ -77,7 +77,7 @@ async def archive_task(
     service: TaskService = Depends(get_task_service),
 ):
     """Архивирует задачу."""
-    return service.archive_task(task_id)
+    return await service.archive_task(task_id)
 
 
 @router.post("/{task_id}/complete", response_model=TaskResponse)
@@ -86,7 +86,7 @@ async def complete_task(
     service: TaskService = Depends(get_task_service),
 ):
     """Закрывает задачу."""
-    return service.complete_task(task_id)
+    return await service.complete_task(task_id)
 
 
 @router.get("/summary", response_model=TaskSummaryResponse)
@@ -94,7 +94,7 @@ async def get_summary(
     service: TaskService = Depends(get_task_service),
 ):
     """Возвращает сводку по задачам."""
-    return service.get_summary()
+    return await service.get_summary()
 
 
 @router.get("/export")
@@ -104,7 +104,7 @@ async def export_tasks(
 ):
     """Выгружает все задачи в JSON или CSV."""
 
-    result = service.export_tasks(format=format)
+    result = await service.export_tasks(format=format)
 
     if format == "csv":
         return PlainTextResponse(content=result, media_type="text/csv")
@@ -118,7 +118,7 @@ async def get_task(
     service: TaskService = Depends(get_task_service),
 ):
     """Возвращает задачу по ID."""
-    return service.get_task_with_relations(task_id)
+    return await service.get_task_with_relations(task_id)
 
 
 @router.get("/{task_id}/history", response_model=list[TaskHistoryResponse])
@@ -127,5 +127,5 @@ async def get_task_history(
     service: TaskService = Depends(get_task_service),
 ):
     """Возвращает историю изменений задачи."""
-    service.get_task_by_id(task_id)
-    return service.history_store.get_by_task_id(task_id)
+    await service.get_task_by_id(task_id)
+    return await service.history_store.get_by_task_id(task_id)

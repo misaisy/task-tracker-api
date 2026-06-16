@@ -3,50 +3,62 @@
 Слой: доступ к данным (storage).
 """
 from datetime import UTC, datetime
-from sqlalchemy import text
-from sqlalchemy.orm import Session
+
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models_sql import Comment
 
 
 class CommentStore:
-    def __init__(self, session: Session):
+    def __init__(self, session: AsyncSession):
         self.session = session
 
-    def add(self, comment_data: dict) -> dict:
-        result = self.session.execute(
-            text("""
-                INSERT INTO comments (task_id, author_id, text, created_at)
-                VALUES (:task_id, :author_id, :text, :created_at)
-                RETURNING id
-            """),
-            {
-                "task_id": comment_data["task_id"],
-                "author_id": comment_data["author_id"],
-                "text": comment_data["text"],
-                "created_at": datetime.now(UTC),
-            }
+    async def add(self, comment_data: dict) -> dict:
+        comment = Comment(
+            task_id=comment_data["task_id"],
+            author_id=comment_data["author_id"],
+            text=comment_data["text"],
+            created_at=datetime.now(UTC),
         )
-        comment_id = result.scalar()
-        return self.get_by_id(comment_id)
+        self.session.add(comment)
+        await self.session.flush()
+        return self._to_dict(comment)
 
-    def get_by_id(self, comment_id: int) -> dict | None:
-        row = self.session.execute(
-            text("SELECT * FROM comments WHERE id = :id"), {"id": comment_id}
-        ).fetchone()
-        return dict(row._mapping) if row else None
+    async def get_by_id(self, comment_id: int) -> dict | None:
+        comment = await self.session.get(Comment, comment_id)
+        return self._to_dict(comment) if comment else None
 
-    def get_by_task_id(self, task_id: int) -> list[dict]:
-        rows = self.session.execute(
-            text("SELECT * FROM comments WHERE task_id = :task_id ORDER BY created_at"),
-            {"task_id": task_id}
-        ).fetchall()
-        return [dict(row._mapping) for row in rows]
+    async def get_by_task_id(self, task_id: int) -> list[dict]:
+        stmt = (
+            select(Comment)
+            .where(Comment.task_id == task_id)
+            .order_by(Comment.created_at)
+        )
+        result = await self.session.execute(stmt)
+        comments = result.scalars().all()
+        return [self._to_dict(c) for c in comments]
 
-    def get_all(self) -> list[dict]:
-        rows = self.session.execute(text("SELECT * FROM comments")).fetchall()
-        return [dict(row._mapping) for row in rows]
-    
-    def commit(self):
-        self.session.commit()
+    async def get_all(self) -> list[dict]:
+        stmt = (
+            select(Comment)
+            .order_by(Comment.id)
+        )
+        result = await self.session.execute(stmt)
+        comments = result.scalars().all()
+        return [self._to_dict(c) for c in comments]
 
-    def clear(self):
-        self.session.execute(text("DELETE FROM comments"))
+    async def commit(self):
+        await self.session.commit()
+
+    async def clear(self):
+        await self.session.execute(delete(Comment))
+
+    def _to_dict(self, comment: Comment) -> dict:
+        return {
+            "id": comment.id,
+            "task_id": comment.task_id,
+            "text": comment.text,
+            "author_id": comment.author_id,
+            "created_at": comment.created_at,
+        }

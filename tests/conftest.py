@@ -1,8 +1,9 @@
 import pytest
 from fastapi.testclient import TestClient
-from app.main import app
+
 from app.db import SessionLocal
-from app.models_sql import Comment, Task, User, TaskHistory
+from app.main import app
+from app.models_sql import Comment, Task, TaskHistory, User
 
 
 @pytest.fixture

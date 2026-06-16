@@ -27,7 +27,7 @@ class TaskService:
         self.history_store = history_store
         self.user_store = user_store
 
-    def get_all_tasks(
+    async def get_all_tasks(
         self,
         status: str | None = None,
         priority: str | None = None,
@@ -36,10 +36,7 @@ class TaskService:
         sort_by: str = "created_at",
         sort_order: str = "desc",
     ) -> dict:
-        """
-        Возвращает список задач с фильтрацией, сортировкой и пагинацией.
-        """
-        tasks = self.store.get_filtered_tasks(
+        tasks = await self.store.get_filtered_tasks(
             status=status,
             priority=priority,
             sort_by=sort_by,
@@ -65,31 +62,32 @@ class TaskService:
             "pages": pages,
         }
 
-    def get_task_by_id(self, task_id: int) -> dict:
-        """Возвращает задачу по ID или выбрасывает TaskNotFoundError."""
-        task = self.store.get_by_id(task_id)
+    async def get_task_by_id(self, task_id: int) -> dict:
+        task = await self.store.get_by_id(task_id)
         if task is None:
             raise TaskNotFoundError(task_id)
         return task
 
-    def create_task(self, task_data: dict) -> dict:
-        """Создаёт новую задачу и возвращает её."""
+    async def get_task_with_relations(self, task_id: int) -> dict:
+        task = await self.store.get_by_id_with_relations(task_id)
+        if task is None:
+            raise TaskNotFoundError(task_id)
+        return task
+
+    async def create_task(self, task_data: dict) -> dict:
         owner_id = task_data.get("owner_id")
         if owner_id is not None:
-            user = self.user_store.get_by_id(owner_id)
+            user = await self.user_store.get_by_id(owner_id)
             if user is None:
                 raise UserNotFoundError(owner_id)
 
-        task = self.store.add(task_data)
-        self.store.commit()
+        task = await self.store.add(task_data)
+        await self.store.commit()
         logger.info("Task created: id=%d, title=%s", task["id"], task["title"])
         return task
 
-    def update_task(self, task_id: int, update_data: TaskUpdate) -> dict:
-        """
-        Частично обновляет задачу.
-        """
-        task = self.get_task_by_id(task_id)
+    async def update_task(self, task_id: int, update_data: TaskUpdate) -> dict:
+        task = await self.get_task_by_id(task_id)
 
         if task.get("status") == TASK_STATUS_ARCHIVED:
             raise ValidationError("Cannot modify archived task")
@@ -107,65 +105,76 @@ class TaskService:
                 new_val = value
             else:
                 continue
-            self._record_change(task_id, field, old_val, new_val)
+            await self._record_change(task_id, field, old_val, new_val)
 
-        self.store.commit()
+        await self.store.update(task_id, changes)
+        await self.store.commit()
         logger.info("Task updated: id=%d, fields=%s", task_id, update_data.model_fields_set)
         return task
 
-    def assign_task(self, task_id: int, user_id: int) -> dict:
-        """
-        Назначает исполнителя задаче.
-        """
-        task = self.get_task_by_id(task_id)
+    async def assign_task(self, task_id: int, user_id: int) -> dict:
+        task = await self.get_task_by_id(task_id)
 
         if task.get("status") == TASK_STATUS_ARCHIVED:
             raise ConflictError("Cannot assign archived task")
 
-        user = self.user_store.get_by_id(user_id)
+        user = await self.user_store.get_by_id(user_id)
         if user is None:
             raise UserNotFoundError(user_id)
 
         old_assignee = task.get("assignee_id")
         old_status = task.get("status")
-        result = self.store.assign(task_id, user_id)
+        result = await self.store.assign(task_id, user_id)
 
         if result is None:
             raise RuntimeError("Task disappeared")
 
         if old_assignee != result["assignee_id"]:
-            self._record_change(task_id, "assignee_id", old_assignee, result["assignee_id"])
+            await self._record_change(task_id, "assignee_id", old_assignee, result["assignee_id"])
 
         if old_status != result["status"]:
-            self._record_change(task_id, "status", old_status, result["status"])
+            await self._record_change(task_id, "status", old_status, result["status"])
 
-        self.store.commit()
+        await self.store.commit()
         logger.info("Task assigned: task_id=%d, user_id=%d", task_id, user_id)
-        return result  # type: ignore[return-value]
+        return result
 
-    def archive_task(self, task_id: int) -> dict:
-        """Архивирует задачу."""
-        task = self.get_task_by_id(task_id)
+    async def archive_task(self, task_id: int) -> dict:
+        task = await self.get_task_by_id(task_id)
 
         old_status = task.get("status")
-        result = self.store.archive(task_id)
+        result = await self.store.archive(task_id)
         if result is None:
             raise ConflictError("Task is already archived")
 
-        self._record_change(task_id, "status", old_status, result["status"])
-        self.store.commit()
+        await self._record_change(task_id, "status", old_status, result["status"])
+        await self.store.commit()
         logger.info("Task archived: task_id=%d", task_id)
         return result
 
-    def get_summary(self) -> dict:
-        return self.store.get_summary()
+    async def complete_task(self, task_id: int) -> dict:
+        task = await self.get_task_by_id(task_id)
 
-    def export_tasks(self, format: str = "json") -> dict | str:
-        """Выгружает все задачи в указанном формате."""
-        tasks = self.store.get_all()
+        if task.get("status") == TASK_STATUS_DONE:
+            raise ConflictError("Task is already done")
+        if task.get("status") == TASK_STATUS_ARCHIVED:
+            raise ConflictError("Cannot complete archived task")
+
+        old_status = task.get("status")
+        result = await self.store.complete(task_id)
+        await self._record_change(task_id, "status", old_status, result["status"])
+
+        await self.store.commit()
+        logger.info("Task completed: id=%d", task_id)
+        return result
+
+    async def get_summary(self) -> dict:
+        return await self.store.get_summary()
+
+    async def export_tasks(self, format: str = "json") -> dict | str:
+        tasks = await self.store.get_all()
 
         if format == "csv":
-
             output = io.StringIO()
             writer = csv.DictWriter(output, fieldnames=["id", "title", "status", "priority", "created_at"])
             writer.writeheader()
@@ -185,34 +194,10 @@ class TaskService:
             "tasks": tasks,
         }
 
-    def complete_task(self, task_id: int) -> dict:
-        """Закрывает задачу. Нельзя закрыть архивную или уже закрытую."""
-        task = self.get_task_by_id(task_id)
-
-        if task.get("status") == TASK_STATUS_DONE:
-            raise ConflictError("Task is already done")
-        if task.get("status") == TASK_STATUS_ARCHIVED:
-            raise ConflictError("Cannot complete archived task")
-
-        old_status = task.get("status")
-        result = self.store.complete(task_id)
-        self._record_change(task_id, "status", old_status, result["status"])
-
-        self.store.commit()
-        logger.info("Task completed: id=%d", task_id)
-        return result
-
-    def _record_change(self, task_id: int, field: str, old_value, new_value):
-        self.history_store.add_entry(
+    async def _record_change(self, task_id: int, field: str, old_value, new_value):
+        await self.history_store.add_entry(
             task_id=task_id,
             field=field,
             old_value=str(old_value) if old_value is not None else None,
             new_value=str(new_value) if new_value is not None else None,
         )
-    
-    def get_task_with_relations(self, task_id: int) -> dict:
-        """Возвращает задачу с владельцем, исполнителем и комментариями."""
-        task = self.store.get_by_id_with_relations(task_id)
-        if task is None:
-            raise TaskNotFoundError(task_id)
-        return task

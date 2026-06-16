@@ -3,42 +3,47 @@
 Слой: доступ к данным (storage).
 """
 from datetime import UTC, datetime
-from sqlalchemy import text
-from sqlalchemy.orm import Session
+
+from sqlalchemy import delete, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models_sql import User
 
 
 class UserStore:
-    def __init__(self, session: Session):
+    def __init__(self, session: AsyncSession):
         self.session = session
 
-    def add(self, user_data: dict) -> dict:
-        result = self.session.execute(
-            text("""
-                INSERT INTO users (username, email, created_at)
-                VALUES (:username, :email, :created_at)
-                RETURNING id
-            """),
-            {
-                "username": user_data["username"],
-                "email": user_data["email"],
-                "created_at": datetime.now(UTC),
-            }
+    async def add(self, user_data: dict) -> dict:
+        user = User(
+            username=user_data["username"],
+            email=user_data["email"],
+            created_at=datetime.now(UTC),
         )
-        user_id = result.scalar()
-        return self.get_by_id(user_id)
+        self.session.add(user)
+        await self.session.flush()
+        return self._to_dict(user)
 
-    def get_all(self) -> list[dict]:
-        rows = self.session.execute(text("SELECT * FROM users")).fetchall()
-        return [dict(row._mapping) for row in rows]
+    async def get_all(self) -> list[dict]:
+        stmt = select(User).order_by(User.id)
+        result = await self.session.execute(stmt)
+        users = result.scalars().all()
+        return [self._to_dict(u) for u in users]
 
-    def get_by_id(self, user_id: int) -> dict | None:
-        row = self.session.execute(
-            text("SELECT * FROM users WHERE id = :id"), {"id": user_id}
-        ).fetchone()
-        return dict(row._mapping) if row else None
-    
-    def commit(self):
-        self.session.commit()
+    async def get_by_id(self, user_id: int) -> dict | None:
+        user = await self.session.get(User, user_id)
+        return self._to_dict(user) if user else None
 
-    def clear(self):
-        self.session.execute(text("DELETE FROM users"))
+    async def commit(self):
+        await self.session.commit()
+
+    async def clear(self):
+        await self.session.execute(delete(User))
+
+    def _to_dict(self, user: User) -> dict:
+        return {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "created_at": user.created_at,
+        }
