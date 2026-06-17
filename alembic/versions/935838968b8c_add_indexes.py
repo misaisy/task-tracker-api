@@ -1,7 +1,7 @@
 """add_indexes
 
 Revision ID: 935838968b8c
-Revises: 5357d64d5264
+Revises: e1c1738d5da2
 Create Date: 2026-06-15 09:32:50.801217
 
 """
@@ -11,7 +11,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '935838968b8c'
-down_revision: str | Sequence[str] | None = '5357d64d5264'
+down_revision: str | Sequence[str] | None = 'e1c1738d5da2'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

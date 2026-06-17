@@ -8,7 +8,18 @@ from sqlalchemy import and_, case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.core.constants import DEFAULT_PRIORITY, DEFAULT_STATUS
+from app.core.constants import (
+    DEFAULT_PRIORITY,
+    DEFAULT_STATUS,
+    PRIORITY_HIGH,
+    PRIORITY_LOW,
+    PRIORITY_MEDIUM,
+    TASK_STATUS_ARCHIVED,
+    TASK_STATUS_DONE,
+    TASK_STATUS_IN_PROGRESS,
+    TASK_STATUS_REVIEW,
+    TASK_STATUS_TODO,
+)
 from app.models.orm import Task
 
 
@@ -75,18 +86,18 @@ class TaskStore:
         order_direction = "desc" if sort_order.lower() == "desc" else "asc"
         if sort_by == "priority":
             order_col = case(
-                (Task.priority == "low", 0),
-                (Task.priority == "medium", 1),
-                (Task.priority == "high", 2),
+                (Task.priority == PRIORITY_LOW, 0),
+                (Task.priority == PRIORITY_MEDIUM, 1),
+                (Task.priority == PRIORITY_HIGH, 2),
                 else_=3,
             )
         elif sort_by == "status":
             order_col = case(
-                (Task.status == "TODO", 0),
-                (Task.status == "IN_PROGRESS", 1),   # constants
-                (Task.status == "REVIEW", 2),
-                (Task.status == "DONE", 3),
-                (Task.status == "ARCHIVED", 4),
+                (Task.status == TASK_STATUS_TODO, 0),
+                (Task.status == TASK_STATUS_IN_PROGRESS, 1),
+                (Task.status == TASK_STATUS_REVIEW, 2),
+                (Task.status == TASK_STATUS_DONE, 3),
+                (Task.status == TASK_STATUS_ARCHIVED, 4),
                 else_=5,
             )
         else:
@@ -137,8 +148,8 @@ class TaskStore:
         task = await self.session.get(Task, task_id)
         if not task:
             return None
-        if task.status == "TODO":
-            task.status = "IN_PROGRESS"
+        if task.status == TASK_STATUS_TODO:
+            task.status = TASK_STATUS_IN_PROGRESS
         task.assignee_id = user_id
         task.updated_at = datetime.now(UTC)
         await self.session.flush()
@@ -148,9 +159,9 @@ class TaskStore:
         task = await self.session.get(Task, task_id)
         if not task:
             return None
-        if task.status == "ARCHIVED":
+        if task.status == TASK_STATUS_ARCHIVED:
             return None
-        task.status = "ARCHIVED"
+        task.status = TASK_STATUS_ARCHIVED
         task.updated_at = datetime.now(UTC)
         await self.session.flush()
         return self._to_dict(task)
@@ -159,7 +170,7 @@ class TaskStore:
         task = await self.session.get(Task, task_id)
         if not task:
             return None
-        task.status = "DONE"
+        task.status = TASK_STATUS_DONE
         task.closed_at = datetime.now(UTC)
         task.updated_at = datetime.now(UTC)
         await self.session.flush()
