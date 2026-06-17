@@ -1,37 +1,25 @@
-import pytest
-from fastapi.testclient import TestClient
+import pytest_asyncio
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 
-from app.db import SessionLocal
+from app.db import AsyncSessionLocal
 from app.main import app
-from app.models_sql import Comment, Task, TaskHistory, User
 
 
-@pytest.fixture
-def client():
-    return TestClient(app)
+@pytest_asyncio.fixture
+async def client():
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as client:
+        yield client
 
 
-@pytest.fixture(autouse=True)
-def clean_database():
-    """Очищает все таблицы перед каждым тестом."""
-    db = SessionLocal()
-    try:
-        db.query(TaskHistory).delete()
-        db.query(Comment).delete()
-        db.query(Task).delete()
-        db.query(User).delete()
-        db.commit()
-    finally:
-        db.close()
-
-
-@pytest.fixture
-def test_user():
-    """Создаёт тестового пользователя через сервис."""
-    from app.storage.user_store import UserStore
-    db = SessionLocal()
-    store = UserStore(db)
-    user = store.add({"username": "testuser", "email": "test@example.com"})
-    db.commit()
-    db.close()
-    return user
+@pytest_asyncio.fixture(autouse=True)
+async def clean_database():
+    async with AsyncSessionLocal() as db:
+        await db.execute(text("DELETE FROM task_history"))
+        await db.execute(text("DELETE FROM comments"))
+        await db.execute(text("DELETE FROM tasks"))
+        await db.execute(text("DELETE FROM users"))
+        await db.commit()
