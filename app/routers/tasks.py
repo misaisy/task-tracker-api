@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 from app.dependencies import get_task_service
-from app.models import (
+from app.models.schemas import (
     AssignRequest,
     TaskCreate,
     TaskHistoryResponse,

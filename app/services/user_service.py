@@ -7,7 +7,7 @@ import logging
 
 from sqlalchemy.exc import IntegrityError
 
-from app.exceptions import ConflictError, UserNotFoundError
+from app.errors.exceptions import ConflictError, UserNotFoundError
 from app.storage.user_store import UserStore
 
 logger = logging.getLogger(__name__)

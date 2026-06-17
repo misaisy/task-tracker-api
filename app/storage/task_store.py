@@ -8,8 +8,8 @@ from sqlalchemy import and_, case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
-from app.constants import DEFAULT_PRIORITY, DEFAULT_STATUS
-from app.models_sql import Task
+from app.core.constants import DEFAULT_PRIORITY, DEFAULT_STATUS
+from app.models.orm import Task
 
 
 class TaskStore:
@@ -83,7 +83,7 @@ class TaskStore:
         elif sort_by == "status":
             order_col = case(
                 (Task.status == "TODO", 0),
-                (Task.status == "IN_PROGRESS", 1),
+                (Task.status == "IN_PROGRESS", 1),   # constants
                 (Task.status == "REVIEW", 2),
                 (Task.status == "DONE", 3),
                 (Task.status == "ARCHIVED", 4),

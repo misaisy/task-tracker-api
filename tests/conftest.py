@@ -2,7 +2,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
 
-from app.db import AsyncSessionLocal
+from app.core.db import AsyncSessionLocal
 from app.main import app
 
 

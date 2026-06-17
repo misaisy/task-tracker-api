@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
-from app.constants import DEFAULT_PRIORITY, DEFAULT_STATUS
+from app.core.constants import DEFAULT_PRIORITY, DEFAULT_STATUS
 
 
 class ErrorDetail(BaseModel):

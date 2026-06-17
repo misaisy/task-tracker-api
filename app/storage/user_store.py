@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models_sql import User
+from app.models.orm import User
 
 
 class UserStore:
@@ -27,11 +27,11 @@ class UserStore:
     async def get_all(self) -> list[dict]:
         stmt = select(User).order_by(User.id)
         result = await self.session.execute(stmt)
-        users = result.scalars().all()
+        users = result.scalars().all()  # mapping
         return [self._to_dict(u) for u in users]
 
     async def get_by_id(self, user_id: int) -> dict | None:
-        user = await self.session.get(User, user_id)
+        user = await self.session.get_one(User, user_id)  # get_one
         return self._to_dict(user) if user else None
 
     async def commit(self):

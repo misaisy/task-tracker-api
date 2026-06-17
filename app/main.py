@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 
 from app.dependencies import get_settings
-from app.error_handlers import (
+from app.errors.error_handlers import (
     comment_not_found_handler,
     conflict_error_handler,
     task_not_found_handler,
@@ -14,7 +14,7 @@ from app.error_handlers import (
     validation_error_handler,
     validation_exception_handler,
 )
-from app.exceptions import (
+from app.errors.exceptions import (
     CommentNotFoundError,
     ConflictError,
     TaskNotFoundError,

@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models_sql import Comment
+from app.models.orm import Comment
 
 
 class CommentStore:

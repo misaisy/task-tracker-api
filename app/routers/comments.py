@@ -6,7 +6,7 @@
 from fastapi import APIRouter, Depends, status
 
 from app.dependencies import get_comment_service
-from app.models import CommentCreate, CommentResponse
+from app.models.schemas import CommentCreate, CommentResponse
 from app.services.comment_service import CommentService
 
 router = APIRouter(prefix="/tasks", tags=["comments"])

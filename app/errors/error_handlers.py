@@ -2,7 +2,7 @@ from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from app.exceptions import (
+from app.errors.exceptions import (
     CommentNotFoundError,
     ConflictError,
     TaskNotFoundError,
@@ -10,7 +10,7 @@ from app.exceptions import (
     UserNotFoundError,
     ValidationError,
 )
-from app.models import ErrorDetail, ErrorResponse
+from app.models.schemas import ErrorDetail, ErrorResponse
 
 
 def task_tracker_error_handler(request: Request, exc: TaskTrackerError) -> JSONResponse:

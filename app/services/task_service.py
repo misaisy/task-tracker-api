@@ -8,12 +8,12 @@ import io
 import logging
 from datetime import UTC, datetime
 
-from app.constants import (
+from app.core.constants import (
     TASK_STATUS_ARCHIVED,
     TASK_STATUS_DONE,
 )
-from app.exceptions import ConflictError, TaskNotFoundError, UserNotFoundError, ValidationError
-from app.models import TaskUpdate
+from app.errors.exceptions import ConflictError, TaskNotFoundError, UserNotFoundError, ValidationError
+from app.models.schemas import TaskUpdate
 from app.storage.task_history_store import TaskHistoryStore
 from app.storage.task_store import TaskStore
 from app.storage.user_store import UserStore

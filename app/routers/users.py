@@ -6,7 +6,7 @@
 from fastapi import APIRouter, Depends, status
 
 from app.dependencies import get_user_service
-from app.models import UserCreate, UserResponse
+from app.models.schemas import UserCreate, UserResponse
 from app.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])

@@ -1,6 +1,6 @@
 import pytest
 
-from app.constants import PRIORITY_HIGH, PRIORITY_LOW, TASK_STATUS_TODO
+from app.core.constants import PRIORITY_HIGH, PRIORITY_LOW, TASK_STATUS_TODO
 
 
 @pytest.mark.anyio

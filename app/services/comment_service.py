@@ -5,7 +5,7 @@
 """
 import logging
 
-from app.exceptions import TaskNotFoundError, UserNotFoundError
+from app.errors.exceptions import TaskNotFoundError, UserNotFoundError
 from app.storage.comment_store import CommentStore
 from app.storage.task_store import TaskStore
 from app.storage.user_store import UserStore

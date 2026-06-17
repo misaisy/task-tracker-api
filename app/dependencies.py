@@ -3,12 +3,12 @@ from collections.abc import AsyncGenerator
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import AsyncSessionLocal
+from app.core.db import AsyncSessionLocal
+from app.core.settings import Settings
+from app.core.settings import settings as _settings
 from app.services.comment_service import CommentService
 from app.services.task_service import TaskService
 from app.services.user_service import UserService
-from app.settings import Settings
-from app.settings import settings as _settings
 from app.storage.comment_store import CommentStore
 from app.storage.task_history_store import TaskHistoryStore
 from app.storage.task_store import TaskStore
