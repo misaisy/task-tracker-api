@@ -14,7 +14,7 @@ class UserStore:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def add(self, user_data: dict) -> dict:
+    async def add(self, user_data: dict) -> User:
         user = User(
             username=user_data["username"],
             email=user_data["email"],
@@ -22,28 +22,18 @@ class UserStore:
         )
         self.session.add(user)
         await self.session.flush()
-        return self._to_dict(user)
+        return user
 
-    async def get_all(self) -> list[dict]:
+    async def get_all(self) -> list[User]:
         stmt = select(User).order_by(User.id)
         result = await self.session.execute(stmt)
-        users = result.scalars().all()  # mapping
-        return [self._to_dict(u) for u in users]
+        return list(result.scalars().all())  # mapping
 
-    async def get_by_id(self, user_id: int) -> dict:
-        user = await self.session.get_one(User, user_id)
-        return self._to_dict(user) if user else None
+    async def get_by_id(self, user_id: int) -> User:
+        return await self.session.get_one(User, user_id)
 
     async def commit(self):
         await self.session.commit()
 
     async def clear(self):
         await self.session.execute(delete(User))
-
-    def _to_dict(self, user: User) -> dict:
-        return {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "created_at": user.created_at,
-        }

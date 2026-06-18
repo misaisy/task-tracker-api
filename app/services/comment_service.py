@@ -8,6 +8,7 @@ import logging
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.errors.exceptions import TaskNotFoundError, UserNotFoundError
+from app.models.orm import Comment
 from app.storage.comment_store import CommentStore
 from app.storage.task_store import TaskStore
 from app.storage.user_store import UserStore
@@ -21,10 +22,10 @@ class CommentService:
         self.task_store = task_store
         self.user_store = user_store
 
-    async def get_comments_by_task(self, task_id: int) -> list[dict]:
+    async def get_comments_by_task(self, task_id: int) -> list[Comment]:
         return await self.store.get_by_task_id(task_id)
 
-    async def create_comment(self, comment_data: dict) -> dict:
+    async def create_comment(self, comment_data: dict) -> Comment:
         try:
             await self.task_store.get_by_id(comment_data["task_id"])
         except NoResultFound as e:
@@ -39,5 +40,5 @@ class CommentService:
         await self.store.commit()
         logger.info(
             "Comment created: id=%d, task_id=%d, author_id=%d",
-            comment["id"], comment["task_id"], comment["author_id"])
+            comment.id, comment.task_id, comment.author_id)
         return comment

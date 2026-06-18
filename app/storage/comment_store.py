@@ -14,7 +14,7 @@ class CommentStore:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def add(self, comment_data: dict) -> dict:
+    async def add(self, comment_data: dict) -> Comment:
         comment = Comment(
             task_id=comment_data["task_id"],
             author_id=comment_data["author_id"],
@@ -23,42 +23,30 @@ class CommentStore:
         )
         self.session.add(comment)
         await self.session.flush()
-        return self._to_dict(comment)
+        return comment
 
-    async def get_by_id(self, comment_id: int) -> dict:
-        comment = await self.session.get_one(Comment, comment_id)
-        return self._to_dict(comment)
+    async def get_by_id(self, comment_id: int) -> Comment:
+        return await self.session.get_one(Comment, comment_id)
 
-    async def get_by_task_id(self, task_id: int) -> list[dict]:
+    async def get_by_task_id(self, task_id: int) -> list[Comment]:
         stmt = (
             select(Comment)
             .where(Comment.task_id == task_id)
             .order_by(Comment.created_at)
         )
         result = await self.session.execute(stmt)
-        comments = result.scalars().all()
-        return [self._to_dict(c) for c in comments]
+        return list(result.scalars().all())
 
-    async def get_all(self) -> list[dict]:
+    async def get_all(self) -> list[Comment]:
         stmt = (
             select(Comment)
             .order_by(Comment.id)
         )
         result = await self.session.execute(stmt)
-        comments = result.scalars().all()
-        return [self._to_dict(c) for c in comments]
+        return list(result.scalars().all())
 
     async def commit(self):
         await self.session.commit()
 
     async def clear(self):
         await self.session.execute(delete(Comment))
-
-    def _to_dict(self, comment: Comment) -> dict:
-        return {
-            "id": comment.id,
-            "task_id": comment.task_id,
-            "text": comment.text,
-            "author_id": comment.author_id,
-            "created_at": comment.created_at,
-        }

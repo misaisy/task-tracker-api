@@ -19,7 +19,7 @@ class TaskStore:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def add(self, task_data: dict) -> dict:
+    async def add(self, task_data: dict) -> Task:
         task = Task(
             title=task_data["title"],
             description=task_data.get("description"),
@@ -31,19 +31,17 @@ class TaskStore:
         )
         self.session.add(task)
         await self.session.flush()
-        return self._to_dict(task)
+        return task
 
-    async def get_all(self) -> list[dict]:
+    async def get_all(self) -> list[Task]:
         stmt = select(Task).order_by(Task.id)
         result = await self.session.execute(stmt)
-        tasks = result.scalars().all()
-        return [self._to_dict(t) for t in tasks]
+        return list(result.scalars().all())
 
-    async def get_by_id(self, task_id: int) -> dict:
-        task = await self.session.get_one(Task, task_id)
-        return self._to_dict(task)
+    async def get_by_id(self, task_id: int) -> Task:
+        return await self.session.get_one(Task, task_id)
 
-    async def get_by_id_with_relations(self, task_id: int) -> dict | None:
+    async def get_by_id_with_relations(self, task_id: int) -> Task:
         stmt = (
             select(Task)
             .options(
@@ -54,10 +52,7 @@ class TaskStore:
             .where(Task.id == task_id)
         )
         result = await self.session.execute(stmt)
-        task = result.unique().scalar_one_or_none()
-        if not task:
-            return None
-        return self._to_dict_with_relations(task)
+        return result.unique().scalar_one()
 
     async def get_filtered_tasks(
         self,
@@ -65,7 +60,7 @@ class TaskStore:
         priority: str | None = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
-    ) -> list[dict]:
+    ) -> list[Task]:
         stmt = select(Task)
         conditions = []
         if status:
@@ -99,8 +94,7 @@ class TaskStore:
         stmt = stmt.order_by(order_col)
 
         result = await self.session.execute(stmt)
-        tasks = result.scalars().all()
-        return [self._to_dict(t) for t in tasks]
+        return list(result.scalars().all())
 
     async def get_summary(self) -> dict:
         status_stmt = (
@@ -125,91 +119,40 @@ class TaskStore:
             "by_priority": by_priority,
         }
 
-    async def update(self, task_id: int, data: dict) -> dict | None:
-        task = await self.session.get(Task, task_id)
-        if not task:
-            return None
+    async def update(self, task_id: int, data: dict) -> Task:
+        task = await self.session.get_one(Task, task_id)
         for field, value in data.items():
-            if hasattr(task, field) and field not in ("id", "created_at", "updated_at", "closed_at", "owner_id"):
-                setattr(task, field, value)
+            setattr(task, field, value)
         task.updated_at = datetime.now(UTC)
         await self.session.flush()
-        return self._to_dict(task)
+        return task
 
-    async def assign(self, task_id: int, user_id: int) -> dict | None:
-        task = await self.session.get(Task, task_id)
-        if not task:
-            return None
+    async def assign(self, task_id: int, user_id: int) -> Task:
+        task = await self.session.get_one(Task, task_id)
         if task.status == Status.TODO:
             task.status = Status.IN_PROGRESS
         task.assignee_id = user_id
         task.updated_at = datetime.now(UTC)
         await self.session.flush()
-        return self._to_dict(task)
+        return task
 
-    async def archive(self, task_id: int) -> dict | None:
-        task = await self.session.get(Task, task_id)
-        if not task:
-            return None
-        if task.status == Status.ARCHIVED:
-            return None
+    async def archive(self, task_id: int) -> Task:
+        task = await self.session.get_one(Task, task_id)
         task.status = Status.ARCHIVED
         task.updated_at = datetime.now(UTC)
         await self.session.flush()
-        return self._to_dict(task)
+        return task
 
-    async def complete(self, task_id: int) -> dict | None:
-        task = await self.session.get(Task, task_id)
-        if not task:
-            return None
+    async def complete(self, task_id: int) -> Task:
+        task = await self.session.get_one(Task, task_id)
         task.status = Status.DONE
         task.closed_at = datetime.now(UTC)
         task.updated_at = datetime.now(UTC)
         await self.session.flush()
-        return self._to_dict(task)
+        return task
 
     async def commit(self):
         await self.session.commit()
 
     async def clear(self):
         await self.session.execute(delete(Task))
-
-    def _to_dict(self, task: Task) -> dict:
-        return {
-            "id": task.id,
-            "title": task.title,
-            "description": task.description,
-            "priority": task.priority,
-            "status": task.status,
-            "created_at": task.created_at,
-            "updated_at": task.updated_at,
-            "closed_at": task.closed_at,
-            "owner_id": task.owner_id,
-            "assignee_id": task.assignee_id,
-        }
-
-    def _to_dict_with_relations(self, task: Task) -> dict:
-        result = self._to_dict(task)
-        result["owner"] = self._user_to_dict(task.owner) if task.owner else None
-        result["assignee"] = self._user_to_dict(task.assignee) if task.assignee else None
-        result["comments"] = [
-            {
-                "id": c.id,
-                "task_id": c.task_id,
-                "text": c.text,
-                "author_id": c.author_id,
-                "created_at": c.created_at,
-            }
-            for c in task.comments
-        ]
-        return result
-
-    def _user_to_dict(self, user) -> dict | None:
-        if not user:
-            return None
-        return {
-            "id": user.id,
-            "username": user.username,
-            "email": user.email,
-            "created_at": user.created_at,
-        }
