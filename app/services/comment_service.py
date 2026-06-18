@@ -5,9 +5,10 @@
 """
 import logging
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app.errors.exceptions import TaskNotFoundError, UserNotFoundError
+from app.errors.exceptions import ConflictError, TaskNotFoundError, UserNotFoundError
 from app.models.orm import Comment
 from app.storage.comment_store import CommentStore
 from app.storage.task_store import TaskStore
@@ -36,8 +37,13 @@ class CommentService:
         except NoResultFound as e:
             raise UserNotFoundError(comment_data["author_id"]) from e
 
-        comment = await self.store.add(comment_data)
-        await self.store.commit()
+        try:
+            comment = await self.store.add(comment_data)
+            await self.store.commit()
+        except IntegrityError:
+            await self.store.session.rollback()
+            raise ConflictError("Cannot create comment") from None
+
         logger.info(
             "Comment created: id=%d, task_id=%d, author_id=%d",
             comment.id, comment.task_id, comment.author_id)

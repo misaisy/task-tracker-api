@@ -8,6 +8,7 @@ import io
 import logging
 from datetime import UTC, datetime
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.core.constants import Status
@@ -82,8 +83,13 @@ class TaskService:
             except NoResultFound as e:
                 raise UserNotFoundError(owner_id) from e
 
-        task = await self.store.add(task_data)
-        await self.store.commit()
+        try:
+            task = await self.store.add(task_data)
+            await self.store.commit()
+        except IntegrityError:
+            await self.store.session.rollback()
+            raise ConflictError("Cannot create task") from None
+
         logger.info("Task created: id=%d, title=%s", task.id, task.title)
         return task
 
