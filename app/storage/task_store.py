@@ -9,16 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.core.constants import (
-    DEFAULT_PRIORITY,
-    DEFAULT_STATUS,
-    PRIORITY_HIGH,
-    PRIORITY_LOW,
-    PRIORITY_MEDIUM,
-    TASK_STATUS_ARCHIVED,
-    TASK_STATUS_DONE,
-    TASK_STATUS_IN_PROGRESS,
-    TASK_STATUS_REVIEW,
-    TASK_STATUS_TODO,
+    Priority,
+    Status,
 )
 from app.models.orm import Task
 
@@ -31,8 +23,8 @@ class TaskStore:
         task = Task(
             title=task_data["title"],
             description=task_data.get("description"),
-            priority=task_data.get("priority", DEFAULT_PRIORITY),
-            status=DEFAULT_STATUS,
+            priority=task_data.get("priority", Priority.MEDIUM),
+            status=Status.TODO,
             owner_id=task_data.get("owner_id"),
             created_at=datetime.now(UTC),
             updated_at=datetime.now(UTC),
@@ -47,9 +39,9 @@ class TaskStore:
         tasks = result.scalars().all()
         return [self._to_dict(t) for t in tasks]
 
-    async def get_by_id(self, task_id: int) -> dict | None:
-        task = await self.session.get(Task, task_id)
-        return self._to_dict(task) if task else None
+    async def get_by_id(self, task_id: int) -> dict:
+        task = await self.session.get_one(Task, task_id)
+        return self._to_dict(task)
 
     async def get_by_id_with_relations(self, task_id: int) -> dict | None:
         stmt = (
@@ -86,18 +78,18 @@ class TaskStore:
         order_direction = "desc" if sort_order.lower() == "desc" else "asc"
         if sort_by == "priority":
             order_col = case(
-                (Task.priority == PRIORITY_LOW, 0),
-                (Task.priority == PRIORITY_MEDIUM, 1),
-                (Task.priority == PRIORITY_HIGH, 2),
+                (Task.priority == Priority.LOW, 0),
+                (Task.priority == Priority.MEDIUM, 1),
+                (Task.priority == Priority.HIGH, 2),
                 else_=3,
             )
         elif sort_by == "status":
             order_col = case(
-                (Task.status == TASK_STATUS_TODO, 0),
-                (Task.status == TASK_STATUS_IN_PROGRESS, 1),
-                (Task.status == TASK_STATUS_REVIEW, 2),
-                (Task.status == TASK_STATUS_DONE, 3),
-                (Task.status == TASK_STATUS_ARCHIVED, 4),
+                (Task.status == Status.TODO, 0),
+                (Task.status == Status.IN_PROGRESS, 1),
+                (Task.status == Status.REVIEW, 2),
+                (Task.status == Status.DONE, 3),
+                (Task.status == Status.ARCHIVED, 4),
                 else_=5,
             )
         else:
@@ -148,8 +140,8 @@ class TaskStore:
         task = await self.session.get(Task, task_id)
         if not task:
             return None
-        if task.status == TASK_STATUS_TODO:
-            task.status = TASK_STATUS_IN_PROGRESS
+        if task.status == Status.TODO:
+            task.status = Status.IN_PROGRESS
         task.assignee_id = user_id
         task.updated_at = datetime.now(UTC)
         await self.session.flush()
@@ -159,9 +151,9 @@ class TaskStore:
         task = await self.session.get(Task, task_id)
         if not task:
             return None
-        if task.status == TASK_STATUS_ARCHIVED:
+        if task.status == Status.ARCHIVED:
             return None
-        task.status = TASK_STATUS_ARCHIVED
+        task.status = Status.ARCHIVED
         task.updated_at = datetime.now(UTC)
         await self.session.flush()
         return self._to_dict(task)
@@ -170,7 +162,7 @@ class TaskStore:
         task = await self.session.get(Task, task_id)
         if not task:
             return None
-        task.status = TASK_STATUS_DONE
+        task.status = Status.DONE
         task.closed_at = datetime.now(UTC)
         task.updated_at = datetime.now(UTC)
         await self.session.flush()

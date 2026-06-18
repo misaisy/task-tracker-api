@@ -6,7 +6,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
-from app.core.constants import DEFAULT_PRIORITY, DEFAULT_STATUS
+from app.core.constants import Priority, Status
 
 
 class ErrorDetail(BaseModel):
@@ -25,8 +25,8 @@ class TaskBase(BaseModel):
     """Общие поля для всех моделей задачи."""
     title: str = Field(..., min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=1000)
-    priority: str = Field(default=DEFAULT_PRIORITY, pattern="^(low|medium|high)$")
-    status: str = Field(default=DEFAULT_STATUS)
+    priority: Priority = Field(default=Priority.MEDIUM)
+    status: Status = Field(default=Status.TODO)
 
 
 class TaskCreate(TaskBase):

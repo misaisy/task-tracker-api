@@ -25,9 +25,9 @@ class CommentStore:
         await self.session.flush()
         return self._to_dict(comment)
 
-    async def get_by_id(self, comment_id: int) -> dict | None:
-        comment = await self.session.get(Comment, comment_id)
-        return self._to_dict(comment) if comment else None
+    async def get_by_id(self, comment_id: int) -> dict:
+        comment = await self.session.get_one(Comment, comment_id)
+        return self._to_dict(comment)
 
     async def get_by_task_id(self, task_id: int) -> list[dict]:
         stmt = (

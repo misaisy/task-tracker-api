@@ -2,8 +2,11 @@
 SQLAlchemy модели для базы данных.
 """
 from sqlalchemy import CheckConstraint, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
+
+from app.core.constants import Priority, Status
 
 Base = declarative_base()
 
@@ -27,8 +30,8 @@ class Task(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     title = Column(String(200), nullable=False)
     description = Column(Text)
-    priority = Column(String(10), nullable=False, server_default='medium')
-    status = Column(String(20), nullable=False, server_default='TODO')
+    priority = Column(SAEnum(Priority), nullable=False, default=Priority.MEDIUM)
+    status = Column(SAEnum(Status), nullable=False, default=Status.TODO)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     closed_at = Column(DateTime(timezone=True))

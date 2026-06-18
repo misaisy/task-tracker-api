@@ -30,8 +30,8 @@ class UserStore:
         users = result.scalars().all()  # mapping
         return [self._to_dict(u) for u in users]
 
-    async def get_by_id(self, user_id: int) -> dict | None:
-        user = await self.session.get_one(User, user_id)  # get_one
+    async def get_by_id(self, user_id: int) -> dict:
+        user = await self.session.get_one(User, user_id)
         return self._to_dict(user) if user else None
 
     async def commit(self):

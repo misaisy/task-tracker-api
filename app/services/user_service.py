@@ -6,6 +6,7 @@
 import logging
 
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import NoResultFound
 
 from app.errors.exceptions import ConflictError, UserNotFoundError
 from app.storage.user_store import UserStore
@@ -21,10 +22,10 @@ class UserService:
         return await self.store.get_all()
 
     async def get_user_by_id(self, user_id: int) -> dict:
-        user = await self.store.get_by_id(user_id)
-        if user is None:
-            raise UserNotFoundError(user_id)
-        return user
+        try:
+            return await self.store.get_by_id(user_id)
+        except NoResultFound as e:
+            raise UserNotFoundError(user_id) from e
 
     async def create_user(self, user_data: dict) -> dict:
         try:

@@ -3,18 +3,18 @@
 Слой: конфигурация.
 """
 
-# Статусы задач
-TASK_STATUS_TODO = "TODO"
-TASK_STATUS_IN_PROGRESS = "IN_PROGRESS"
-TASK_STATUS_REVIEW = "REVIEW"
-TASK_STATUS_DONE = "DONE"
-TASK_STATUS_ARCHIVED = "ARCHIVED"
+from enum import StrEnum
 
-# Приоритеты задач
-PRIORITY_LOW = "low"
-PRIORITY_MEDIUM = "medium"
-PRIORITY_HIGH = "high"
 
-# Настройки по умолчанию
-DEFAULT_PRIORITY = PRIORITY_MEDIUM
-DEFAULT_STATUS = TASK_STATUS_TODO
+class Status(StrEnum):
+    TODO = "TODO"
+    IN_PROGRESS = "IN_PROGRESS"
+    REVIEW = "REVIEW"
+    DONE = "DONE"
+    ARCHIVED = "Archived"
+
+
+class Priority(StrEnum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "High"

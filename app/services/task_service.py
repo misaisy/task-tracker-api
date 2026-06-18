@@ -8,10 +8,9 @@ import io
 import logging
 from datetime import UTC, datetime
 
-from app.core.constants import (
-    TASK_STATUS_ARCHIVED,
-    TASK_STATUS_DONE,
-)
+from sqlalchemy.orm.exc import NoResultFound
+
+from app.core.constants import Status
 from app.errors.exceptions import ConflictError, TaskNotFoundError, UserNotFoundError, ValidationError
 from app.models.schemas import TaskUpdate
 from app.storage.task_history_store import TaskHistoryStore
@@ -63,10 +62,10 @@ class TaskService:
         }
 
     async def get_task_by_id(self, task_id: int) -> dict:
-        task = await self.store.get_by_id(task_id)
-        if task is None:
-            raise TaskNotFoundError(task_id)
-        return task
+        try:
+            return await self.store.get_by_id(task_id)
+        except NoResultFound as e:
+            raise TaskNotFoundError(task_id) from e
 
     async def get_task_with_relations(self, task_id: int) -> dict:
         task = await self.store.get_by_id_with_relations(task_id)
@@ -89,7 +88,7 @@ class TaskService:
     async def update_task(self, task_id: int, update_data: TaskUpdate) -> dict:
         task = await self.get_task_by_id(task_id)
 
-        if task.get("status") == TASK_STATUS_ARCHIVED:
+        if task.get("status") == Status.ARCHIVED:
             raise ValidationError("Cannot modify archived task")
 
         changes = update_data.model_dump(exclude_unset=True)
@@ -115,7 +114,7 @@ class TaskService:
     async def assign_task(self, task_id: int, user_id: int) -> dict:
         task = await self.get_task_by_id(task_id)
 
-        if task.get("status") == TASK_STATUS_ARCHIVED:
+        if task.get("status") == Status.ARCHIVED:
             raise ConflictError("Cannot assign archived task")
 
         user = await self.user_store.get_by_id(user_id)
@@ -155,9 +154,9 @@ class TaskService:
     async def complete_task(self, task_id: int) -> dict:
         task = await self.get_task_by_id(task_id)
 
-        if task.get("status") == TASK_STATUS_DONE:
+        if task.get("status") == Status.DONE:
             raise ConflictError("Task is already done")
-        if task.get("status") == TASK_STATUS_ARCHIVED:
+        if task.get("status") == Status.ARCHIVED:
             raise ConflictError("Cannot complete archived task")
 
         old_status = task.get("status")
