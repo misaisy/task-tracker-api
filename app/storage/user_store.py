@@ -27,7 +27,7 @@ class UserStore:
     async def get_all(self) -> list[User]:
         stmt = select(User).order_by(User.id)
         result = await self.session.execute(stmt)
-        return list(result.scalars().all())  # mapping
+        return list(result.scalars().all())
 
     async def get_by_id(self, user_id: int) -> User:
         return await self.session.get_one(User, user_id)
