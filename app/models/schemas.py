@@ -43,6 +43,10 @@ class TaskResponse(TaskBase):
     closed_at: datetime | None = None
     owner_id: int | None = None
     assignee_id: int | None = None
+
+
+class TaskDetailResponse(TaskResponse):
+    """Модель с владельцем, исполнителем и комментариями."""
     owner: UserResponse | None = None
     assignee: UserResponse | None = None
     comments: list[CommentResponse] = []
@@ -52,8 +56,8 @@ class TaskUpdate(BaseModel):
     """Модель для частичного обновления задачи."""
     title: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=1000)
-    priority: str | None = Field(default=None, pattern="^(low|medium|high)$")
-    status: str | None = Field(default=None)
+    priority: Priority | None = None
+    status: Status | None = None
     model_config = ConfigDict(extra="forbid")
 
     @model_validator(mode="after")

@@ -8,6 +8,7 @@ import logging
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
+from app.core.constants import Status
 from app.errors.exceptions import ConflictError, TaskNotFoundError, UserNotFoundError
 from app.models.orm import Comment
 from app.storage.comment_store import CommentStore
@@ -28,9 +29,12 @@ class CommentService:
 
     async def create_comment(self, comment_data: dict) -> Comment:
         try:
-            await self.task_store.get_by_id(comment_data["task_id"])
+            task = await self.task_store.get_by_id(comment_data["task_id"])
         except NoResultFound as e:
             raise TaskNotFoundError(comment_data["task_id"]) from e
+
+        if task.status == Status.ARCHIVED:
+            raise ConflictError("Cannot comment on archived task")
 
         try:
             await self.user_store.get_by_id(comment_data["author_id"])

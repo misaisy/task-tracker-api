@@ -10,6 +10,7 @@ from app.dependencies import get_task_service
 from app.models.schemas import (
     AssignRequest,
     TaskCreate,
+    TaskDetailResponse,
     TaskHistoryResponse,
     TaskListResponse,
     TaskResponse,
@@ -112,7 +113,7 @@ async def export_tasks(
     return JSONResponse(content=result)
 
 
-@router.get("/{task_id}", response_model=TaskResponse)
+@router.get("/{task_id}", response_model=TaskDetailResponse)
 async def get_task(
     task_id: int,
     service: TaskService = Depends(get_task_service),

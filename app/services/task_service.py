@@ -108,7 +108,8 @@ class TaskService:
                 new_val = value
             else:
                 continue
-            await self._record_change(task_id, field, old_val, new_val)
+            if str(old_val) != str(new_val):
+                await self._record_change(task_id, field, old_val, new_val)
 
         task = await self.store.update(task_id, changes)
         await self.store.commit()

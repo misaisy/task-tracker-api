@@ -11,10 +11,10 @@ class Status(StrEnum):
     IN_PROGRESS = "IN_PROGRESS"
     REVIEW = "REVIEW"
     DONE = "DONE"
-    ARCHIVED = "Archived"
+    ARCHIVED = "ARCHIVED"
 
 
 class Priority(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
-    HIGH = "High"
+    HIGH = "high"
