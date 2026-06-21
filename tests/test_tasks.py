@@ -26,7 +26,7 @@ async def test_create_task_success(client):
 @pytest.mark.asyncio
 async def test_get_nonexistent_task(client):
     """Проверяет, что запрос несуществующей задачи возвращает 404."""
-    response = await client.get("/tasks/999")
+    response = await client.get("/tasks/550e8400-e29b-41d4-a716-446655440000")
     assert response.status_code == 404
     assert "details" in response.json()
     assert response.json()["error_code"] == "TASK_NOT_FOUND"

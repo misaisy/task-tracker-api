@@ -3,6 +3,8 @@
 Слой: HTTP (routers).
 Зависит от: services, models, dependencies.
 """
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import JSONResponse, PlainTextResponse
 
@@ -49,12 +51,12 @@ async def create_task(
     service: TaskService = Depends(get_task_service),
 ):
     """Создаёт новую задачу."""
-    return await service.create_task(task.model_dump())
+    return await service.create_task(task.model_dump(mode='json'))
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)
 async def update_task(
-    task_id: int,
+    task_id: UUID,
     update: TaskUpdate,
     service: TaskService = Depends(get_task_service),
 ):
@@ -64,7 +66,7 @@ async def update_task(
 
 @router.post("/{task_id}/assign", response_model=TaskResponse)
 async def assign_task(
-    task_id: int,
+    task_id: UUID,
     request: AssignRequest,
     service: TaskService = Depends(get_task_service),
 ):
@@ -74,7 +76,7 @@ async def assign_task(
 
 @router.post("/{task_id}/archive", response_model=TaskResponse)
 async def archive_task(
-    task_id: int,
+    task_id: UUID,
     service: TaskService = Depends(get_task_service),
 ):
     """Архивирует задачу."""
@@ -83,7 +85,7 @@ async def archive_task(
 
 @router.post("/{task_id}/complete", response_model=TaskResponse)
 async def complete_task(
-    task_id: int,
+    task_id: UUID,
     service: TaskService = Depends(get_task_service),
 ):
     """Закрывает задачу."""
@@ -115,7 +117,7 @@ async def export_tasks(
 
 @router.get("/{task_id}", response_model=TaskDetailResponse)
 async def get_task(
-    task_id: int,
+    task_id: UUID,
     service: TaskService = Depends(get_task_service),
 ):
     """Возвращает задачу по ID."""
@@ -124,7 +126,7 @@ async def get_task(
 
 @router.get("/{task_id}/history", response_model=list[TaskHistoryResponse])
 async def get_task_history(
-    task_id: int,
+    task_id: UUID,
     service: TaskService = Depends(get_task_service),
 ):
     """Возвращает историю изменений задачи."""

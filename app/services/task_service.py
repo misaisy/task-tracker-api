@@ -183,7 +183,7 @@ class TaskService:
             writer.writeheader()
             for task in tasks:
                 writer.writerow({
-                    "id": task.id,
+                    "id": str(task.id),
                     "title": task.title,
                     "status": task.status,
                     "priority": task.priority,
@@ -196,7 +196,7 @@ class TaskService:
             "format": "json",
             "tasks": [
                 {
-                    "id": t.id,
+                    "id": str(t.id),
                     "title": t.title,
                     "description": t.description,
                     "priority": t.priority,
@@ -204,8 +204,8 @@ class TaskService:
                     "created_at": t.created_at.isoformat() if t.created_at else None,
                     "updated_at": t.updated_at.isoformat() if t.updated_at else None,
                     "closed_at": t.closed_at.isoformat() if t.closed_at else None,
-                    "owner_id": t.owner_id,
-                    "assignee_id": t.assignee_id,
+                    "owner_id": str(t.owner_id),
+                    "assignee_id": str(t.assignee_id),
                 }
                 for t in tasks
             ],

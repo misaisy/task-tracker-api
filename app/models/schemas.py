@@ -3,6 +3,7 @@ Pydantic-модели.
 Слой: модели данных.
 """
 from datetime import datetime
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
@@ -31,18 +32,18 @@ class TaskBase(BaseModel):
 
 class TaskCreate(TaskBase):
     """Модель для создания задачи."""
-    owner_id: int | None = Field(default=None, gt=0)
+    owner_id: UUID | None = Field(default=None)
     model_config = ConfigDict(extra="forbid")
 
 
 class TaskResponse(TaskBase):
     """Модель ответа с данными задачи."""
-    id: int
+    id: UUID
     created_at: datetime
     updated_at: datetime | None = None
     closed_at: datetime | None = None
-    owner_id: int | None = None
-    assignee_id: int | None = None
+    owner_id: UUID | None = None
+    assignee_id: UUID | None = None
 
 
 class TaskDetailResponse(TaskResponse):
@@ -79,13 +80,13 @@ class TaskListResponse(BaseModel):
 
 class AssignRequest(BaseModel):
     """Модель запроса для назначения исполнителя."""
-    user_id: int = Field(..., gt=0, description="ID пользователя-исполнителя")
+    user_id: UUID = Field(..., description="ID пользователя-исполнителя")
     model_config = ConfigDict(extra="forbid")
 
 
 class TaskWithAssigneeResponse(TaskResponse):
     """Модель ответа задачи с назначенным исполнителем."""
-    assignee_id: int | None = None
+    assignee_id: UUID | None = None
 
 
 class UserCreate(BaseModel):
@@ -97,7 +98,7 @@ class UserCreate(BaseModel):
 
 class UserResponse(BaseModel):
     """Модель ответа с данными пользователя."""
-    id: int
+    id: UUID
     username: str
     email: str
     created_at: datetime
@@ -106,16 +107,16 @@ class UserResponse(BaseModel):
 class CommentCreate(BaseModel):
     """Модель для создания комментария."""
     text: str = Field(..., min_length=1, max_length=1000)
-    author_id: int = Field(..., gt=0, description="ID автора комментария")
+    author_id: UUID = Field(..., description="ID автора комментария")
     model_config = ConfigDict(extra="forbid")
 
 
 class CommentResponse(BaseModel):
     """Модель ответа с данными комментария."""
-    id: int
-    task_id: int
+    id: UUID
+    task_id: UUID
     text: str
-    author_id: int
+    author_id: UUID
     created_at: datetime
 
 
@@ -135,8 +136,8 @@ class TaskExportResponse(BaseModel):
 
 class TaskHistoryResponse(BaseModel):
     """Запись истории изменений задачи."""
-    id: int
-    task_id: int
+    id: UUID
+    task_id: UUID
     field: str
     old_value: str | None
     new_value: str | None

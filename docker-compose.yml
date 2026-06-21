@@ -42,9 +42,18 @@ services:
     build: .
     command: pytest
     env_file:
-      - .env
+      - .env.docker
     depends_on:
-      - db
+      - db_test
+  
+  db_test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: testdb
+    ports:
+      - "5433:5432"
 
 volumes:
   postgres_data:

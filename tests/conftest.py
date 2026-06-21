@@ -6,11 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy.pool import NullPool
 
 from app.core.settings import settings
+from app.dependencies import get_db
 from app.main import app
 from app.models.orm import Base
 
 test_engine = create_async_engine(
-    settings.DATABASE_URL,
+    settings.TEST_DATABASE_URL,
     poolclass=NullPool,
 )
 
@@ -21,17 +22,19 @@ TestAsyncSession = async_sessionmaker(
 )
 
 
+async def override_get_db():
+    async with TestAsyncSession() as session:
+        yield session
+
+
+app.dependency_overrides[get_db] = override_get_db
+
+
 @pytest.fixture(scope="session", autouse=True)
 async def setup_database():
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
     yield
-
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
-    await test_engine.dispose()
 
 
 @pytest.fixture
@@ -48,5 +51,5 @@ async def cleanup_db():
     yield
     async with TestAsyncSession() as session:
         for table in ("task_history", "comments", "tasks", "users"):
-            await session.execute(text(f"DELETE FROM {table}"))
+            await session.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE"))
         await session.commit()

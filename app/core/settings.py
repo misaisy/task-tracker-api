@@ -21,6 +21,10 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://user:password@localhost:5432/taskdb"
     )
 
+    TEST_DATABASE_URL: str = Field(
+        default="postgresql+asyncpg://testuser:testpass@localhost:5433/testdb"
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
