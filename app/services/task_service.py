@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app.core.constants import Status
-from app.errors.exceptions import ConflictError, TaskNotFoundError, UserNotFoundError, ValidationError
+from app.errors.exceptions import ConflictError, TaskNotFoundError, UserNotFoundError
 from app.models.orm import Task
 from app.models.schemas import TaskUpdate
 from app.storage.task_history_store import TaskHistoryStore
@@ -96,7 +96,7 @@ class TaskService:
     async def update_task(self, task_id: int, update_data: TaskUpdate) -> Task:
         task = await self.get_task_by_id(task_id)
         if task.status == Status.ARCHIVED:
-            raise ValidationError("Cannot modify archived task")
+            raise ConflictError("Cannot modify archived task")
 
         changes = update_data.model_dump(exclude_unset=True)
         for field, value in changes.items():
@@ -194,7 +194,21 @@ class TaskService:
         return {
             "exported_at": datetime.now(UTC).isoformat(),
             "format": "json",
-            "tasks": tasks,
+            "tasks": [
+                {
+                    "id": t.id,
+                    "title": t.title,
+                    "description": t.description,
+                    "priority": t.priority,
+                    "status": t.status,
+                    "created_at": t.created_at.isoformat() if t.created_at else None,
+                    "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+                    "closed_at": t.closed_at.isoformat() if t.closed_at else None,
+                    "owner_id": t.owner_id,
+                    "assignee_id": t.assignee_id,
+                }
+                for t in tasks
+            ],
         }
 
     async def _record_change(self, task_id: int, field: str, old_value, new_value):

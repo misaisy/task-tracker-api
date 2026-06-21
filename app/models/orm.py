@@ -40,11 +40,11 @@ class Task(Base):
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)
     priority: Mapped[Priority] = mapped_column(
-        SAEnum(Priority, values_callable=lambda x: [e.value for e in x]),
+        SAEnum(Priority, values_callable=lambda x: [e.value for e in x], native_enum=False),
         default=Priority.MEDIUM,
     )
     status: Mapped[Status] = mapped_column(
-        SAEnum(Status, values_callable=lambda x: [e.value for e in x]),
+        SAEnum(Status, values_callable=lambda x: [e.value for e in x], native_enum=False),
         default=Status.TODO,
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

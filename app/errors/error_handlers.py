@@ -8,7 +8,6 @@ from app.errors.exceptions import (
     TaskNotFoundError,
     TaskTrackerError,
     UserNotFoundError,
-    ValidationError,
 )
 from app.models.schemas import ErrorDetail, ErrorResponse
 
@@ -57,17 +56,6 @@ def comment_not_found_handler(request: Request, exc: CommentNotFoundError) -> JS
     )
 
 
-def validation_error_handler(request: Request, exc: ValidationError) -> JSONResponse:
-    """Обработчик: ошибка валидации - 422."""
-    return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        content=ErrorResponse(
-            error_code="VALIDATION_ERROR",
-            details=str(exc),
-        ).model_dump(),
-    )
-
-
 def conflict_error_handler(request: Request, exc: ConflictError) -> JSONResponse:
     return JSONResponse(
         status_code=status.HTTP_409_CONFLICT,
@@ -85,7 +73,7 @@ def validation_exception_handler(request: Request, exc: RequestValidationError) 
         loc = [str(item) for item in e["loc"]]
         details.append(ErrorDetail(loc=loc, msg=e["msg"]))
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         content=ErrorResponse(
             error_code="VALIDATION_ERROR",
             details=details,
