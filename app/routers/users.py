@@ -7,8 +7,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-from app.dependencies import get_user_service
-from app.models.schemas import UserCreate, UserResponse
+from app.dependencies import get_user_service, require_admin
+from app.models.orm import User
+from app.models.schemas import UpdateUserRoleRequest, UserCreate, UserResponse
 from app.services.user_service import UserService
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -27,3 +28,29 @@ async def list_users(service: UserService = Depends(get_user_service)):
 @router.get("/{user_id}", response_model=UserResponse)
 async def get_user(user_id: UUID, service: UserService = Depends(get_user_service)):
     return await service.get_user_by_id(user_id)
+
+
+@router.patch("/{user_id}/role")
+async def update_user_role(
+    user_id: UUID,
+    request: UpdateUserRoleRequest,
+    service: UserService = Depends(get_user_service),
+    admin: User = Depends(require_admin),
+):
+    """Повышает или понижает роль пользователя. Только для админов."""
+    user = await service.get_user_by_id(user_id)
+    user.role = request.role
+    await service.store.commit()
+    return user
+
+
+@router.post("/{user_id}/deactivate")
+async def deactivate_user(
+    user_id: UUID,
+    service: UserService = Depends(get_user_service),
+    require_admin: User = Depends(require_admin),
+):
+    user = await service.get_user_by_id(user_id)
+    user.is_active = False
+    await service.store.commit()
+    return {"status": "ok"}

@@ -7,7 +7,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
-from app.core.constants import Priority, Status
+from app.core.constants import Priority, Role, Status
 
 
 class ErrorDetail(BaseModel):
@@ -32,7 +32,6 @@ class TaskBase(BaseModel):
 
 class TaskCreate(TaskBase):
     """Модель для создания задачи."""
-    owner_id: UUID | None = Field(default=None)
     model_config = ConfigDict(extra="forbid")
 
 
@@ -101,7 +100,13 @@ class UserResponse(BaseModel):
     id: UUID
     username: str
     email: str
+    role: str
     created_at: datetime
+
+
+class UpdateUserRoleRequest(BaseModel):
+    role: Role
+    model_config = ConfigDict(extra="forbid")
 
 
 class CommentCreate(BaseModel):

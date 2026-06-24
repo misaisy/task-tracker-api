@@ -8,7 +8,9 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import JSONResponse, PlainTextResponse
 
-from app.dependencies import get_task_service
+from app.core.constants import Role
+from app.dependencies import get_current_user, get_task_service, require_owner_or_admin
+from app.models.orm import Task, User
 from app.models.schemas import (
     AssignRequest,
     TaskCreate,
@@ -33,8 +35,10 @@ async def list_tasks(
     sort_by: str = Query(default="created_at", description="Поле для сортировки"),
     sort_order: str = Query(default="desc", description="Направление сортировки"),
     service: TaskService = Depends(get_task_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Возвращает список задач с фильтрацией, сортировкой и пагинацией."""
+    owner_id = None if current_user.role == Role.ADMIN else current_user.id
     return await service.get_all_tasks(
         status=status,
         priority=priority,
@@ -42,6 +46,7 @@ async def list_tasks(
         page_size=page_size,
         sort_by=sort_by,
         sort_order=sort_order,
+        owner_id=owner_id,
     )
 
 
@@ -49,9 +54,12 @@ async def list_tasks(
 async def create_task(
     task: TaskCreate,
     service: TaskService = Depends(get_task_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Создаёт новую задачу."""
-    return await service.create_task(task.model_dump(mode='json'))
+    data = task.model_dump(mode='json')
+    data["owner_id"] = current_user.id
+    return await service.create_task(data)
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)
@@ -59,6 +67,7 @@ async def update_task(
     task_id: UUID,
     update: TaskUpdate,
     service: TaskService = Depends(get_task_service),
+    task: Task = Depends(require_owner_or_admin),
 ):
     """Частично обновляет задачу."""
     return await service.update_task(task_id, update)
@@ -69,15 +78,18 @@ async def assign_task(
     task_id: UUID,
     request: AssignRequest,
     service: TaskService = Depends(get_task_service),
+    current_user: User = Depends(get_current_user),
+    task: Task = Depends(require_owner_or_admin),
 ):
     """Назначает исполнителя задаче."""
-    return await service.assign_task(task_id, request.user_id)
+    return await service.assign_task(task_id, request.user_id, current_user)
 
 
 @router.post("/{task_id}/archive", response_model=TaskResponse)
 async def archive_task(
     task_id: UUID,
     service: TaskService = Depends(get_task_service),
+    task: Task = Depends(require_owner_or_admin),
 ):
     """Архивирует задачу."""
     return await service.archive_task(task_id)
@@ -87,6 +99,7 @@ async def archive_task(
 async def complete_task(
     task_id: UUID,
     service: TaskService = Depends(get_task_service),
+    task: Task = Depends(require_owner_or_admin),
 ):
     """Закрывает задачу."""
     return await service.complete_task(task_id)
@@ -104,6 +117,7 @@ async def get_summary(
 async def export_tasks(
     format: str = "json",
     service: TaskService = Depends(get_task_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Выгружает все задачи в JSON или CSV."""
 
@@ -119,6 +133,7 @@ async def export_tasks(
 async def get_task(
     task_id: UUID,
     service: TaskService = Depends(get_task_service),
+    task: Task = Depends(require_owner_or_admin),
 ):
     """Возвращает задачу по ID."""
     return await service.get_task_with_relations(task_id)
@@ -128,6 +143,7 @@ async def get_task(
 async def get_task_history(
     task_id: UUID,
     service: TaskService = Depends(get_task_service),
+    task: Task = Depends(require_owner_or_admin),
 ):
     """Возвращает историю изменений задачи."""
     await service.get_task_by_id(task_id)

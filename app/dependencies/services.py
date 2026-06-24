@@ -1,11 +1,6 @@
-from collections.abc import AsyncGenerator
-
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.db import AsyncSessionLocal
-from app.core.settings import Settings
-from app.core.settings import settings as _settings
 from app.services.comment_service import CommentService
 from app.services.task_service import TaskService
 from app.services.user_service import UserService
@@ -14,10 +9,7 @@ from app.storage.task_history_store import TaskHistoryStore
 from app.storage.task_store import TaskStore
 from app.storage.user_store import UserStore
 
-
-async def get_db() -> AsyncGenerator[AsyncSession]:
-    async with AsyncSessionLocal() as session:
-        yield session
+from .db import get_db
 
 
 def get_task_service(db: AsyncSession = Depends(get_db)) -> TaskService:
@@ -37,7 +29,3 @@ def get_comment_service(db: AsyncSession = Depends(get_db)) -> CommentService:
     user_store = UserStore(db)
     task_store = TaskStore(db)
     return CommentService(store=comment_store, user_store=user_store, task_store=task_store)
-
-
-def get_settings() -> Settings:
-    return _settings

@@ -27,9 +27,6 @@ async def override_get_db():
         yield session
 
 
-app.dependency_overrides[get_db] = override_get_db
-
-
 @pytest.fixture(scope="session", autouse=True)
 async def setup_database():
     async with test_engine.begin() as conn:
@@ -39,6 +36,7 @@ async def setup_database():
 
 @pytest.fixture
 async def client():
+    app.dependency_overrides[get_db] = override_get_db
     async with AsyncClient(
         transport=ASGITransport(app=app),
         base_url="http://test",
@@ -53,3 +51,36 @@ async def cleanup_db():
         for table in ("task_history", "comments", "tasks", "users"):
             await session.execute(text(f"TRUNCATE TABLE {table} RESTART IDENTITY CASCADE"))
         await session.commit()
+
+
+@pytest.fixture
+async def auth_headers(client):
+    """Создаёт обычного пользователя и возвращает заголовок с его токеном."""
+    await client.post(
+        "/users/",
+        json={"username": "testuser", "email": "test@test.com"},
+    )
+    login_resp = await client.post("/auth/login?username=testuser")
+    token = login_resp.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+async def admin_headers(client):
+    """Создаёт админа и возвращает заголовок с его токеном."""
+    create_resp = await client.post(
+        "/users/",
+        json={"username": "admintest", "email": "admin@test.com"},
+    )
+    user_id = create_resp.json()["id"]
+
+    async with TestAsyncSession() as session:
+        await session.execute(
+            text("UPDATE users SET role = 'admin' WHERE id = :user_id"),
+            {"user_id": user_id},
+        )
+        await session.commit()
+
+    login_resp = await client.post("/auth/login?username=admintest")
+    token = login_resp.json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}

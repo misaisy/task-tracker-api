@@ -7,13 +7,14 @@ import csv
 import io
 import logging
 from datetime import UTC, datetime
+from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app.core.constants import Status
+from app.core.constants import Role, Status
 from app.errors.exceptions import ConflictError, TaskNotFoundError, UserNotFoundError
-from app.models.orm import Task
+from app.models.orm import Task, User
 from app.models.schemas import TaskUpdate
 from app.storage.task_history_store import TaskHistoryStore
 from app.storage.task_store import TaskStore
@@ -36,6 +37,7 @@ class TaskService:
         page_size: int = 20,
         sort_by: str = "created_at",
         sort_order: str = "desc",
+        owner_id: UUID | None = None,
     ) -> dict:
         tasks = await self.store.get_filtered_tasks(
             status=status,
@@ -43,6 +45,9 @@ class TaskService:
             sort_by=sort_by,
             sort_order=sort_order,
         )
+
+        if owner_id is not None:
+            tasks = [t for t in tasks if t.owner_id == owner_id]
 
         total = len(tasks)
         pages = (total + page_size - 1) // page_size
@@ -116,7 +121,7 @@ class TaskService:
         logger.info("Task updated: id=%d, fields=%s", task_id, update_data.model_fields_set)
         return task
 
-    async def assign_task(self, task_id: int, user_id: int) -> Task:
+    async def assign_task(self, task_id: int, user_id: int, current_user: User) -> Task:
         task = await self.get_task_by_id(task_id)
 
         if task.status == Status.ARCHIVED:
@@ -126,6 +131,9 @@ class TaskService:
             await self.user_store.get_by_id(user_id)
         except NoResultFound as e:
             raise UserNotFoundError(user_id) from e
+
+        if current_user.role != Role.ADMIN and user_id != current_user.id:
+            raise ConflictError("Cannot assign someone else")
 
         old_assignee = task.assignee_id
         old_status = task.status

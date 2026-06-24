@@ -20,6 +20,7 @@ from app.errors.exceptions import (
     TaskTrackerError,
     UserNotFoundError,
 )
+from app.routers.auth import router as auth_router
 from app.routers.comments import router as comments_router
 from app.routers.tasks import router as tasks_router
 from app.routers.users import router as users_router
@@ -68,6 +69,7 @@ def create_app() -> FastAPI:
     app.add_exception_handler(ConflictError, conflict_error_handler)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]
 
+    app.include_router(auth_router)
     app.include_router(tasks_router)
     app.include_router(users_router)
     app.include_router(comments_router)

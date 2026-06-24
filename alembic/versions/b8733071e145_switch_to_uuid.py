@@ -5,14 +5,14 @@ Revises: 86b236863f45
 Create Date: 2026-06-21 21:49:34.547543
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
+
 from alembic import op
 
-
 revision: str = 'b8733071e145'
-down_revision: Union[str, Sequence[str], None] = '86b236863f45'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = '86b236863f45'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

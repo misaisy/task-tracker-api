@@ -37,3 +37,8 @@ class UserStore:
 
     async def clear(self):
         await self.session.execute(delete(User))
+
+    async def get_by_username(self, username: str) -> User | None:
+        stmt = select(User).where(User.username == username)
+        result = await self.session.execute(stmt)
+        return result.scalars().one_or_none()

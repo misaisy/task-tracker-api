@@ -18,3 +18,8 @@ class Priority(StrEnum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+
+
+class Role(StrEnum):
+    USER = "user"
+    ADMIN = "admin"
