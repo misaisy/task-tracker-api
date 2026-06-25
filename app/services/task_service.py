@@ -15,7 +15,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from app.core.constants import Role, Status
 from app.errors.exceptions import ConflictError, TaskNotFoundError, UserNotFoundError
 from app.models.orm import Task, User
-from app.models.schemas import TaskUpdate
+from app.models.schemas import TaskCreate, TaskUpdate
 from app.storage.task_history_store import TaskHistoryStore
 from app.storage.task_store import TaskStore
 from app.storage.user_store import UserStore
@@ -44,10 +44,8 @@ class TaskService:
             priority=priority,
             sort_by=sort_by,
             sort_order=sort_order,
+            owner_id=owner_id,
         )
-
-        if owner_id is not None:
-            tasks = [t for t in tasks if t.owner_id == owner_id]
 
         total = len(tasks)
         pages = (total + page_size - 1) // page_size
@@ -68,37 +66,33 @@ class TaskService:
             "pages": pages,
         }
 
-    async def get_task_by_id(self, task_id: int) -> Task:
+    async def get_task_by_id(self, task_id: UUID) -> Task:
         try:
             return await self.store.get_by_id(task_id)
         except NoResultFound as e:
             raise TaskNotFoundError(task_id) from e
 
-    async def get_task_with_relations(self, task_id: int) -> Task:
+    async def get_task_with_relations(self, task_id: UUID) -> Task:
         try:
             return await self.store.get_by_id_with_relations(task_id)
         except NoResultFound as e:
             raise TaskNotFoundError(task_id) from e
 
-    async def create_task(self, task_data: dict) -> Task:
-        owner_id = task_data.get("owner_id")
-        if owner_id is not None:
-            try:
-                await self.user_store.get_by_id(owner_id)
-            except NoResultFound as e:
-                raise UserNotFoundError(owner_id) from e
+    async def create_task(self, task_data: TaskCreate, owner_id: UUID) -> Task:
+        data = task_data.model_dump(mode='json')
+        data["owner_id"] = owner_id
 
         try:
-            task = await self.store.add(task_data)
+            task = await self.store.add(data)
             await self.store.commit()
         except IntegrityError:
             await self.store.session.rollback()
             raise ConflictError("Cannot create task") from None
 
-        logger.info("Task created: id=%d, title=%s", task.id, task.title)
+        logger.info("Task created: id=%s, title=%s", task.id, task.title)
         return task
 
-    async def update_task(self, task_id: int, update_data: TaskUpdate) -> Task:
+    async def update_task(self, task_id: UUID, update_data: TaskUpdate) -> Task:
         task = await self.get_task_by_id(task_id)
         if task.status == Status.ARCHIVED:
             raise ConflictError("Cannot modify archived task")
@@ -118,10 +112,10 @@ class TaskService:
 
         task = await self.store.update(task_id, changes)
         await self.store.commit()
-        logger.info("Task updated: id=%d, fields=%s", task_id, update_data.model_fields_set)
+        logger.info("Task updated: id=%s, fields=%s", task_id, update_data.model_fields_set)
         return task
 
-    async def assign_task(self, task_id: int, user_id: int, current_user: User) -> Task:
+    async def assign_task(self, task_id: UUID, user_id: UUID, current_user: User) -> Task:
         task = await self.get_task_by_id(task_id)
 
         if task.status == Status.ARCHIVED:
@@ -146,10 +140,10 @@ class TaskService:
             await self._record_change(task_id, "status", old_status, result.status)
 
         await self.store.commit()
-        logger.info("Task assigned: task_id=%d, user_id=%d", task_id, user_id)
+        logger.info("Task assigned: task_id=%s, user_id=%d", task_id, user_id)
         return result
 
-    async def archive_task(self, task_id: int) -> Task:
+    async def archive_task(self, task_id: UUID) -> Task:
         task = await self.get_task_by_id(task_id)
 
         if task.status == Status.ARCHIVED:
@@ -160,10 +154,10 @@ class TaskService:
 
         await self._record_change(task_id, "status", old_status, result.status)
         await self.store.commit()
-        logger.info("Task archived: task_id=%d", task_id)
+        logger.info("Task archived: task_id=%s", task_id)
         return result
 
-    async def complete_task(self, task_id: int) -> Task:
+    async def complete_task(self, task_id: UUID) -> Task:
         task = await self.get_task_by_id(task_id)
 
         if task.status == Status.DONE:
@@ -176,7 +170,7 @@ class TaskService:
         await self._record_change(task_id, "status", old_status, result.status)
 
         await self.store.commit()
-        logger.info("Task completed: id=%d", task_id)
+        logger.info("Task completed: id=%s", task_id)
         return result
 
     async def get_summary(self) -> dict:
@@ -219,7 +213,7 @@ class TaskService:
             ],
         }
 
-    async def _record_change(self, task_id: int, field: str, old_value, new_value):
+    async def _record_change(self, task_id: UUID, field: str, old_value, new_value):
         await self.history_store.add_entry(
             task_id=task_id,
             field=field,

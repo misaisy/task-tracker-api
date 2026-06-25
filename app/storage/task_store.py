@@ -3,6 +3,7 @@
 Слой: доступ к данным (storage).
 """
 from datetime import UTC, datetime
+from uuid import UUID
 
 from sqlalchemy import and_, case, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,7 +24,7 @@ class TaskStore:
         task = Task(
             title=task_data["title"],
             description=task_data.get("description"),
-            priority=task_data.get("priority", Priority.MEDIUM),
+            priority=task_data.get("priority", Priority.MEDIUM.value),
             status=Status.TODO,
             owner_id=task_data.get("owner_id"),
             created_at=datetime.now(UTC),
@@ -38,10 +39,10 @@ class TaskStore:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_by_id(self, task_id: int) -> Task:
+    async def get_by_id(self, task_id: UUID) -> Task:
         return await self.session.get_one(Task, task_id)
 
-    async def get_by_id_with_relations(self, task_id: int) -> Task:
+    async def get_by_id_with_relations(self, task_id: UUID) -> Task:
         stmt = (
             select(Task)
             .options(
@@ -60,6 +61,7 @@ class TaskStore:
         priority: str | None = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
+        owner_id: UUID | None = None,
     ) -> list[Task]:
         stmt = select(Task)
         conditions = []
@@ -67,6 +69,8 @@ class TaskStore:
             conditions.append(Task.status == status)
         if priority:
             conditions.append(Task.priority == priority)
+        if owner_id is not None:
+            conditions.append(Task.owner_id == owner_id)
         if conditions:
             stmt = stmt.where(and_(*conditions))
 
@@ -119,7 +123,7 @@ class TaskStore:
             "by_priority": by_priority,
         }
 
-    async def update(self, task_id: int, data: dict) -> Task:
+    async def update(self, task_id: UUID, data: dict) -> Task:
         task = await self.session.get_one(Task, task_id)
         for field, value in data.items():
             setattr(task, field, value)
@@ -127,7 +131,7 @@ class TaskStore:
         await self.session.flush()
         return task
 
-    async def assign(self, task_id: int, user_id: int) -> Task:
+    async def assign(self, task_id: UUID, user_id: UUID) -> Task:
         task = await self.session.get_one(Task, task_id)
         if task.status == Status.TODO:
             task.status = Status.IN_PROGRESS
@@ -136,14 +140,14 @@ class TaskStore:
         await self.session.flush()
         return task
 
-    async def archive(self, task_id: int) -> Task:
+    async def archive(self, task_id: UUID) -> Task:
         task = await self.session.get_one(Task, task_id)
         task.status = Status.ARCHIVED
         task.updated_at = datetime.now(UTC)
         await self.session.flush()
         return task
 
-    async def complete(self, task_id: int) -> Task:
+    async def complete(self, task_id: UUID) -> Task:
         task = await self.session.get_one(Task, task_id)
         task.status = Status.DONE
         task.closed_at = datetime.now(UTC)

@@ -18,6 +18,7 @@ class UserStore:
         user = User(
             username=user_data["username"],
             email=user_data["email"],
+            password_hash=user_data.get("password_hash", ""),
             created_at=datetime.now(UTC),
         )
         self.session.add(user)

@@ -92,6 +92,7 @@ class UserCreate(BaseModel):
     """Модель для создания пользователя."""
     username: str = Field(..., min_length=3, max_length=50)
     email: EmailStr
+    password: str = Field(..., min_length=6, max_length=128)
     model_config = ConfigDict(extra="forbid")
 
 
@@ -102,6 +103,13 @@ class UserResponse(BaseModel):
     email: str
     role: str
     created_at: datetime
+
+
+class UserRegisterRequest(BaseModel):
+    username: str = Field(..., min_length=3, max_length=50)
+    email: EmailStr
+    password: str = Field(..., min_length=6, max_length=128)
+    model_config = ConfigDict(extra="forbid")
 
 
 class UpdateUserRoleRequest(BaseModel):

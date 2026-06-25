@@ -1,3 +1,4 @@
+from app.dependencies.auth import create_access_token as create_access_token
 from app.dependencies.auth import get_current_user as get_current_user
 from app.dependencies.auth import require_admin as require_admin
 from app.dependencies.auth import require_owner_or_admin as require_owner_or_admin

@@ -57,9 +57,7 @@ async def create_task(
     current_user: User = Depends(get_current_user),
 ):
     """Создаёт новую задачу."""
-    data = task.model_dump(mode='json')
-    data["owner_id"] = current_user.id
-    return await service.create_task(data)
+    return await service.create_task(task, owner_id=current_user.id)
 
 
 @router.patch("/{task_id}", response_model=TaskResponse)

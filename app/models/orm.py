@@ -6,11 +6,10 @@ from datetime import datetime
 
 from sqlalchemy import UUID as SA_UUID
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, String, Text
-from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
-from app.core.constants import Priority, Status
+from app.core.constants import Priority, Role, Status
 
 
 class Base(DeclarativeBase):
@@ -19,11 +18,15 @@ class Base(DeclarativeBase):
 
 class User(Base):
     __tablename__ = 'users'
+    __table_args__ = (
+        CheckConstraint("role IN ('user', 'admin')", name='ck_users_role_valid'),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(SA_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     username: Mapped[str] = mapped_column(String(50))
     email: Mapped[str] = mapped_column(String(255), unique=True)
-    role: Mapped[str] = mapped_column(String(20), default="user")
+    password_hash: Mapped[str] = mapped_column(String(255))
+    role: Mapped[str] = mapped_column(String(20), default=Role.USER)
     is_active: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -43,14 +46,8 @@ class Task(Base):
     id: Mapped[uuid.UUID] = mapped_column(SA_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(Text)
-    priority: Mapped[Priority] = mapped_column(
-        SAEnum(Priority, values_callable=lambda x: [e.value for e in x], native_enum=False),
-        default=Priority.MEDIUM,
-    )
-    status: Mapped[Status] = mapped_column(
-        SAEnum(Status, values_callable=lambda x: [e.value for e in x], native_enum=False),
-        default=Status.TODO,
-    )
+    priority: Mapped[str] = mapped_column(String(20), default=Priority.MEDIUM)
+    status: Mapped[str] = mapped_column(String(20), default=Status.TODO)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -79,7 +76,7 @@ class Comment(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     task: Mapped[Task] = relationship(back_populates='comments')
-    author: Mapped[User] = relationship(back_populates='comments')
+    author: Mapped[User | None] = relationship(back_populates='comments')
 
 
 class TaskHistory(Base):

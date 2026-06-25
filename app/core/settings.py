@@ -27,6 +27,10 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str
 
+    AUTH_ALGORITHM: str = Field(default="HS256")
+
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=60, ge=1)
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

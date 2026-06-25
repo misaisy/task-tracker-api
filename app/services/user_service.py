@@ -4,7 +4,9 @@
 Зависит от: storage.
 """
 import logging
+from uuid import UUID
 
+import bcrypt
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -19,6 +21,14 @@ class UserService:
     def __init__(self, store: UserStore):
         self.store = store
 
+    @staticmethod
+    def hash_password(password: str) -> str:
+        return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+
+    @staticmethod
+    def verify_password(plain_password: str, hashed: str) -> bool:
+        return bcrypt.checkpw(plain_password.encode(), hashed.encode())
+
     async def get_all_users(self) -> list[User]:
         return await self.store.get_all()
 
@@ -28,12 +38,30 @@ class UserService:
         except NoResultFound as e:
             raise UserNotFoundError(user_id) from e
 
+    async def get_by_username(self, username: str) -> User | None:
+        return await self.store.get_by_username(username)
+
     async def create_user(self, user_data: dict) -> User:
+        if "password" in user_data:
+            user_data["password_hash"] = self.hash_password(user_data.pop("password"))
+
         try:
             user = await self.store.add(user_data)
             await self.store.commit()
         except IntegrityError:
             await self.store.session.rollback()
             raise ConflictError("User with this email already exists") from None
-        logger.info("User created: id=%d, username=%s", user.id, user.username)
+        logger.info("User created: id=%s, username=%s", user.id, user.username)
+        return user
+
+    async def update_user_role(self, user_id: UUID, role: str) -> User:
+        user = await self.get_user_by_id(user_id)
+        user.role = role
+        await self.store.commit()
+        return user
+
+    async def deactivate_user(self, user_id: UUID) -> User:
+        user = await self.get_user_by_id(user_id)
+        user.is_active = False
+        await self.store.commit()
         return user

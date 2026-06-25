@@ -41,8 +41,8 @@ async def test_owner_can_modify_own_task(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_non_owner_gets_404(client, auth_headers):
-    """Чужой пользователь не видит чужую задачу (404)."""
+async def test_non_owner_gets_403(client, auth_headers, other_headers):
+    """Чужой пользователь не видит чужую задачу (403)."""
     create_resp = await client.post(
         "/tasks/",
         json={"title": "Чужая задача"},
@@ -50,16 +50,8 @@ async def test_non_owner_gets_404(client, auth_headers):
     )
     task_id = create_resp.json()["id"]
 
-    await client.post(
-        "/users/",
-        json={"username": "other", "email": "other@test.com"},
-    )
-    login_resp = await client.post("/auth/login?username=other")
-    other_token = login_resp.json()["access_token"]
-    other_headers = {"Authorization": f"Bearer {other_token}"}
-
     response = await client.get(f"/tasks/{task_id}", headers=other_headers)
-    assert response.status_code == 404
+    assert response.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -83,41 +75,32 @@ async def test_owner_can_assign_self(client, auth_headers):
 
 
 @pytest.mark.asyncio
-async def test_admin_can_access_any_task(client, admin_headers):
+async def test_admin_can_access_any_task(client, auth_headers, admin_headers):
     """Админ может читать чужую задачу."""
-    await client.post(
-        "/users/",
-        json={"username": "victim", "email": "victim@test.com"},
-    )
-    victim_login = await client.post("/auth/login?username=victim")
-    victim_token = victim_login.json()["access_token"]
-    victim_headers = {"Authorization": f"Bearer {victim_token}"}
-
     create_resp = await client.post(
         "/tasks/",
         json={"title": "Задача жертвы"},
-        headers=victim_headers,
+        headers=auth_headers,
     )
     task_id = create_resp.json()["id"]
 
-    # Админ смотрит чужую задачу
     response = await client.get(f"/tasks/{task_id}", headers=admin_headers)
     assert response.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_deactivated_user_cannot_login(client, admin_headers):
+async def test_deactivated_user_cannot_login(client, auth_user, admin_headers):
     """Деактивированный пользователь не может залогиниться."""
-    create_resp = await client.post(
-        "/users/",
-        json={"username": "deactivate_me", "email": "deactivate@test.com"},
-    )
-    user_id = create_resp.json()["id"]
+    users_resp = await client.get("/users/", headers=auth_user["headers"])
+    user = next(u for u in users_resp.json() if u["username"] == auth_user["username"])
 
     await client.post(
-        f"/users/{user_id}/deactivate",
+        f"/users/{user['id']}/deactivate",
         headers=admin_headers,
     )
 
-    response = await client.post("/auth/login?username=deactivate_me")
+    response = await client.post("/auth/login", data={
+        "username": auth_user["username"],
+        "password": auth_user["password"],
+    })
     assert response.status_code == 403

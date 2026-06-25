@@ -1,3 +1,6 @@
+from uuid import UUID
+
+
 class TaskTrackerError(Exception):
     """Базовое исключение приложения."""
     pass
@@ -17,7 +20,7 @@ class TaskCreationError(TaskTrackerError):
 
 class UserNotFoundError(TaskTrackerError):
     """Пользователь не найден."""
-    def __init__(self, user_id: int):
+    def __init__(self, user_id: UUID):
         self.user_id = user_id
         super().__init__(f"User with id={user_id} not found")
 
