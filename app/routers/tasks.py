@@ -6,10 +6,9 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
-from fastapi.responses import JSONResponse, PlainTextResponse
 
 from app.core.constants import Role
-from app.dependencies import get_current_user, get_task_service, require_owner_or_admin
+from app.dependencies import get_current_user, get_export_service, get_task_service, require_owner_or_admin
 from app.models.orm import Task, User
 from app.models.schemas import (
     AssignRequest,
@@ -21,6 +20,7 @@ from app.models.schemas import (
     TaskSummaryResponse,
     TaskUpdate,
 )
+from app.services.export_service import ExportService
 from app.services.task_service import TaskService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -111,20 +111,22 @@ async def get_summary(
     return await service.get_summary()
 
 
-@router.get("/export")
-async def export_tasks(
+@router.post("/export", status_code=status.HTTP_202_ACCEPTED)
+async def start_export(
     format: str = "json",
-    service: TaskService = Depends(get_task_service),
+    export_service: ExportService = Depends(get_export_service),
     current_user: User = Depends(get_current_user),
 ):
-    """Выгружает все задачи в JSON или CSV."""
+    export_id = await export_service.start_export(format)
+    return {"export_id": str(export_id), "status": "processing"}
 
-    result = await service.export_tasks(format=format)
 
-    if format == "csv":
-        return PlainTextResponse(content=result, media_type="text/csv")
-
-    return JSONResponse(content=result)
+@router.get("/export/{export_id}")
+async def get_export_status(
+    export_id: UUID,
+    export_service: ExportService = Depends(get_export_service),
+):
+    return await export_service.get_export_response(export_id)
 
 
 @router.get("/{task_id}", response_model=TaskDetailResponse)

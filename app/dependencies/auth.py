@@ -1,3 +1,6 @@
+import asyncio
+import logging
+import time
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
@@ -13,25 +16,29 @@ from app.models.orm import Task, User
 from app.services.task_service import TaskService
 from app.services.user_service import UserService
 
+logger = logging.getLogger(__name__)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
-def create_access_token(user_id: UUID) -> str:
+async def create_access_token(user_id: UUID) -> str:
     """Создаёт JWT-токен для пользователя."""
     expire = datetime.now(UTC) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     payload = {
         "sub": str(user_id),
         "exp": expire,
     }
-    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.AUTH_ALGORITHM)
+    return await asyncio.to_thread(jwt.encode, payload, settings.SECRET_KEY, algorithm=settings.AUTH_ALGORITHM)
 
 
 async def get_current_user(
     token: str = Depends(oauth2_scheme),
     user_service: UserService = Depends(get_user_service)
 ) -> User:
+    start = time.monotonic()
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.AUTH_ALGORITHM])
+        payload = await asyncio.to_thread(jwt.decode, token, settings.SECRET_KEY, algorithms=[settings.AUTH_ALGORITHM])
+        decode_time = time.monotonic() - start
+        logger.debug("JWT decode took %.3fs", decode_time)
         user_id = payload.get("sub")
     except jwt.ExpiredSignatureError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired") from e
@@ -51,6 +58,8 @@ async def get_current_user(
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated")
 
+    total = time.monotonic() - start
+    logger.debug("get_current_user total time: %.3fs", total)
     return user
 
 

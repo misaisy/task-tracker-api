@@ -128,7 +128,7 @@ async def admin_headers(client, db_session):
     user = User(
         username=username,
         email=f"{username}@test.com",
-        password_hash=UserService.hash_password("adminpass"),
+        password_hash=await UserService.hash_password("adminpass"),
         role="admin",
     )
 

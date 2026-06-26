@@ -16,11 +16,11 @@ async def login(
 ):
     """Вход по имени и паролю. Возвращает JWT-токен."""
     user = await user_service.get_by_username(form_data.username)
-    if user is None or not user_service.verify_password(form_data.password, user.password_hash):
+    if user is None or not await user_service.verify_password(form_data.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated")
-    token = create_access_token(user.id)
+    token = await create_access_token(user.id)
     return {"access_token": token, "token_type": "bearer"}
 
 

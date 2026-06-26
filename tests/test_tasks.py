@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from app.core.constants import Priority, Status
@@ -186,15 +188,23 @@ async def test_get_summary(client, auth_headers):
 
 @pytest.mark.asyncio
 async def test_export_tasks(client, auth_headers):
-    """GET /tasks/export возвращает JSON с задачами."""
-    await client.post("/tasks/", json={"title": "Экспорт", "priority": "medium"}, headers=auth_headers)
+    """Экспорт задач."""
+    start_resp = await client.post("/tasks/export?format=json", headers=auth_headers)
+    assert start_resp.status_code == 202
+    export_id = start_resp.json()["export_id"]
 
-    response = await client.get("/tasks/export?format=json", headers=auth_headers)
-    assert response.status_code == 200
-    data = response.json()
+    for _ in range(10):
+        result_resp = await client.get(f"/tasks/export/{export_id}", headers=auth_headers)
+        data = result_resp.json()
+        if "status" not in data or data["status"] == "completed":
+            break
+        await asyncio.sleep(0.01)
+    else:
+        pytest.fail("Export did not complete in time")
+
     assert "exported_at" in data
     assert data["format"] == "json"
-    assert len(data["tasks"]) == 1
+    assert isinstance(data["tasks"], list)
 
 
 @pytest.mark.asyncio

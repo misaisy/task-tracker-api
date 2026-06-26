@@ -3,6 +3,7 @@
 Слой: бизнес-логика (services).
 Зависит от: storage.
 """
+import asyncio
 import logging
 from uuid import UUID
 
@@ -22,12 +23,17 @@ class UserService:
         self.store = store
 
     @staticmethod
-    def hash_password(password: str) -> str:
-        return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    async def hash_password(password: str) -> str:
+        result = await asyncio.to_thread(
+            bcrypt.hashpw, password.encode(), bcrypt.gensalt()
+        )
+        return result.decode()
 
     @staticmethod
-    def verify_password(plain_password: str, hashed: str) -> bool:
-        return bcrypt.checkpw(plain_password.encode(), hashed.encode())
+    async def verify_password(plain_password: str, hashed: str) -> bool:
+        return await asyncio.to_thread(
+            bcrypt.checkpw, plain_password.encode(), hashed.encode()
+        )
 
     async def get_all_users(self) -> list[User]:
         return await self.store.get_all()
@@ -43,7 +49,7 @@ class UserService:
 
     async def create_user(self, user_data: dict) -> User:
         if "password" in user_data:
-            user_data["password_hash"] = self.hash_password(user_data.pop("password"))
+            user_data["password_hash"] = await self.hash_password(user_data.pop("password"))
 
         try:
             user = await self.store.add(user_data)

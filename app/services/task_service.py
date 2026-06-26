@@ -3,10 +3,8 @@
 Слой: бизнес-логика (services).
 Зависит от: storage.
 """
-import csv
-import io
 import logging
-from datetime import UTC, datetime
+import time
 from uuid import UUID
 
 from sqlalchemy.exc import IntegrityError
@@ -16,6 +14,7 @@ from app.core.constants import Role, Status
 from app.errors.exceptions import ConflictError, TaskNotFoundError, UserNotFoundError
 from app.models.orm import Task, User
 from app.models.schemas import TaskCreate, TaskUpdate
+from app.services.notification_service import NotificationService
 from app.storage.task_history_store import TaskHistoryStore
 from app.storage.task_store import TaskStore
 from app.storage.user_store import UserStore
@@ -24,10 +23,17 @@ logger = logging.getLogger(__name__)
 
 
 class TaskService:
-    def __init__(self, store: TaskStore, history_store: TaskHistoryStore, user_store: UserStore):
+    def __init__(
+        self,
+        store: TaskStore,
+        history_store: TaskHistoryStore,
+        user_store: UserStore,
+        notification_service: NotificationService,
+    ):
         self.store = store
         self.history_store = history_store
         self.user_store = user_store
+        self.notification_service = notification_service
 
     async def get_all_tasks(
         self,
@@ -140,7 +146,7 @@ class TaskService:
             await self._record_change(task_id, "status", old_status, result.status)
 
         await self.store.commit()
-        logger.info("Task assigned: task_id=%s, user_id=%d", task_id, user_id)
+        logger.info("Task assigned: task_id=%s, user_id=%s", task_id, user_id)
         return result
 
     async def archive_task(self, task_id: UUID) -> Task:
@@ -154,6 +160,10 @@ class TaskService:
 
         await self._record_change(task_id, "status", old_status, result.status)
         await self.store.commit()
+        logger.debug("Task %s archived, sending notification", task_id)
+        notification_start = time.monotonic()
+        await self.notification_service.notify_task_archived(result)
+        logger.debug("Notification for task %s archived in %.3fs", task_id, time.monotonic() - notification_start)
         logger.info("Task archived: task_id=%s", task_id)
         return result
 
@@ -170,48 +180,15 @@ class TaskService:
         await self._record_change(task_id, "status", old_status, result.status)
 
         await self.store.commit()
+        logger.debug("Task %s closed, sending notification", task_id)
+        notification_start = time.monotonic()
+        await self.notification_service.notify_task_closed(result)
+        logger.debug("Notification for task %s completed in %.3fs", task_id, time.monotonic() - notification_start)
         logger.info("Task completed: id=%s", task_id)
         return result
 
     async def get_summary(self) -> dict:
         return await self.store.get_summary()
-
-    async def export_tasks(self, format: str = "json") -> dict | str:
-        tasks = await self.store.get_all()
-
-        if format == "csv":
-            output = io.StringIO()
-            writer = csv.DictWriter(output, fieldnames=["id", "title", "status", "priority", "created_at"])
-            writer.writeheader()
-            for task in tasks:
-                writer.writerow({
-                    "id": str(task.id),
-                    "title": task.title,
-                    "status": task.status,
-                    "priority": task.priority,
-                    "created_at": task.created_at,
-                })
-            return output.getvalue()
-
-        return {
-            "exported_at": datetime.now(UTC).isoformat(),
-            "format": "json",
-            "tasks": [
-                {
-                    "id": str(t.id),
-                    "title": t.title,
-                    "description": t.description,
-                    "priority": t.priority,
-                    "status": t.status,
-                    "created_at": t.created_at.isoformat() if t.created_at else None,
-                    "updated_at": t.updated_at.isoformat() if t.updated_at else None,
-                    "closed_at": t.closed_at.isoformat() if t.closed_at else None,
-                    "owner_id": str(t.owner_id),
-                    "assignee_id": str(t.assignee_id),
-                }
-                for t in tasks
-            ],
-        }
 
     async def _record_change(self, task_id: UUID, field: str, old_value, new_value):
         await self.history_store.add_entry(
