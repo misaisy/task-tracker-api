@@ -32,6 +32,7 @@ class TaskStore:
         )
         self.session.add(task)
         await self.session.flush()
+        await self.session.commit()
         return task
 
     async def get_all(self) -> list[Task]:
@@ -57,8 +58,8 @@ class TaskStore:
 
     async def get_filtered_tasks(
         self,
-        status: str | None = None,
-        priority: str | None = None,
+        status: Status | None = None,
+        priority: Priority | None = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
         owner_id: UUID | None = None,
@@ -100,22 +101,23 @@ class TaskStore:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_summary(self) -> dict:
-        status_stmt = (
-            select(Task.status, func.count(Task.id))
-            .group_by(Task.status)
-        )
-        status_result = await self.session.execute(status_stmt)
+    async def get_summary(self, owner_id: UUID | None = None) -> dict:
+        status_stmt = select(Task.status, func.count(Task.id))
+        priority_stmt = select(Task.priority, func.count(Task.id))
+        total_stmt = select(func.count(Task.id))
+
+        if owner_id is not None:
+            status_stmt = status_stmt.where(Task.owner_id == owner_id)
+            priority_stmt = priority_stmt.where(Task.owner_id == owner_id)
+            total_stmt = total_stmt.where(Task.owner_id == owner_id)
+
+        status_result = await self.session.execute(status_stmt.group_by(Task.status))
         by_status = {row.status: row.count for row in status_result}
 
-        priority_stmt = (
-            select(Task.priority, func.count(Task.id))
-            .group_by(Task.priority)
-        )
-        priority_result = await self.session.execute(priority_stmt)
+        priority_result = await self.session.execute(priority_stmt.group_by(Task.priority))
         by_priority = {row.priority: row.count for row in priority_result}
 
-        total = await self.session.scalar(select(func.count(Task.id)))
+        total = await self.session.scalar(total_stmt)
 
         return {
             "total": total,
@@ -129,6 +131,7 @@ class TaskStore:
             setattr(task, field, value)
         task.updated_at = datetime.now(UTC)
         await self.session.flush()
+        await self.session.commit()
         return task
 
     async def assign(self, task_id: UUID, user_id: UUID) -> Task:
@@ -138,6 +141,7 @@ class TaskStore:
         task.assignee_id = user_id
         task.updated_at = datetime.now(UTC)
         await self.session.flush()
+        await self.session.commit()
         return task
 
     async def archive(self, task_id: UUID) -> Task:
@@ -145,6 +149,7 @@ class TaskStore:
         task.status = Status.ARCHIVED
         task.updated_at = datetime.now(UTC)
         await self.session.flush()
+        await self.session.commit()
         return task
 
     async def complete(self, task_id: UUID) -> Task:
@@ -153,10 +158,8 @@ class TaskStore:
         task.closed_at = datetime.now(UTC)
         task.updated_at = datetime.now(UTC)
         await self.session.flush()
-        return task
-
-    async def commit(self):
         await self.session.commit()
+        return task
 
     async def clear(self):
         await self.session.execute(delete(Task))

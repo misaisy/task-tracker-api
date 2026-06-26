@@ -7,7 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, status
 
-from app.dependencies import get_user_service, require_admin
+from app.dependencies import get_current_user, get_user_service, require_admin
 from app.models.orm import User
 from app.models.schemas import UpdateUserRoleRequest, UserCreate, UserResponse
 from app.services.user_service import UserService
@@ -25,12 +25,19 @@ async def create_user(
 
 
 @router.get("/", response_model=list[UserResponse])
-async def list_users(service: UserService = Depends(get_user_service)):
+async def list_users(
+    service: UserService = Depends(get_user_service),
+    current_user: User = Depends(get_current_user),
+):
     return await service.get_all_users()
 
 
 @router.get("/{user_id}", response_model=UserResponse)
-async def get_user(user_id: UUID, service: UserService = Depends(get_user_service)):
+async def get_user(
+    user_id: UUID,
+    service: UserService = Depends(get_user_service),
+    current_user: User = Depends(get_current_user),
+):
     return await service.get_user_by_id(user_id)
 
 
@@ -49,6 +56,6 @@ async def update_user_role(
 async def deactivate_user(
     user_id: UUID,
     service: UserService = Depends(get_user_service),
-    require_admin: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ):
     return await service.deactivate_user(user_id)

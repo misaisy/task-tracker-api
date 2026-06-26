@@ -8,6 +8,7 @@ import logging
 from uuid import UUID
 
 import bcrypt
+from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -35,10 +36,24 @@ class UserService:
             bcrypt.checkpw, plain_password.encode(), hashed.encode()
         )
 
+    async def authenticate(self, username: str, password: str) -> User:
+        user = await self.get_by_username(username)
+        if user is None or not await self.verify_password(password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid credentials",
+            )
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is deactivated",
+            )
+        return user
+
     async def get_all_users(self) -> list[User]:
         return await self.store.get_all()
 
-    async def get_user_by_id(self, user_id: int) -> User:
+    async def get_user_by_id(self, user_id: UUID) -> User:
         try:
             return await self.store.get_by_id(user_id)
         except NoResultFound as e:
@@ -53,21 +68,15 @@ class UserService:
 
         try:
             user = await self.store.add(user_data)
-            await self.store.commit()
         except IntegrityError:
-            await self.store.session.rollback()
             raise ConflictError("User with this email already exists") from None
         logger.info("User created: id=%s, username=%s", user.id, user.username)
         return user
 
     async def update_user_role(self, user_id: UUID, role: str) -> User:
-        user = await self.get_user_by_id(user_id)
-        user.role = role
-        await self.store.commit()
-        return user
+        await self.get_user_by_id(user_id)
+        return await self.store.update(user_id, {"role": role})
 
     async def deactivate_user(self, user_id: UUID) -> User:
-        user = await self.get_user_by_id(user_id)
-        user.is_active = False
-        await self.store.commit()
-        return user
+        await self.get_user_by_id(user_id)
+        return await self.store.update(user_id, {"is_active": False})

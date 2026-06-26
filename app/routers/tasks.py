@@ -7,7 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from app.core.constants import Role
+from app.core.constants import Priority, Role, Status
 from app.dependencies import get_current_user, get_export_service, get_task_service, require_owner_or_admin
 from app.models.orm import Task, User
 from app.models.schemas import (
@@ -28,8 +28,8 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 @router.get("/", response_model=TaskListResponse)
 async def list_tasks(
-    status: str | None = Query(default=None, description="Фильтр по статусу"),
-    priority: str | None = Query(default=None, description="Фильтр по приоритету"),
+    status: Status | None = Query(default=None, description="Фильтр по статусу"),
+    priority: Priority | None = Query(default=None, description="Фильтр по приоритету"),
     page: int = Query(default=1, ge=1, description="Номер страницы"),
     page_size: int = Query(default=20, ge=1, le=100, description="Размер страницы"),
     sort_by: str = Query(default="created_at", description="Поле для сортировки"),
@@ -106,9 +106,11 @@ async def complete_task(
 @router.get("/summary", response_model=TaskSummaryResponse)
 async def get_summary(
     service: TaskService = Depends(get_task_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Возвращает сводку по задачам."""
-    return await service.get_summary()
+    owner_id = None if current_user.role == Role.ADMIN else current_user.id
+    return await service.get_summary(owner_id=owner_id)
 
 
 @router.post("/export", status_code=status.HTTP_202_ACCEPTED)
@@ -117,7 +119,8 @@ async def start_export(
     export_service: ExportService = Depends(get_export_service),
     current_user: User = Depends(get_current_user),
 ):
-    export_id = await export_service.start_export(format)
+    owner_id = None if current_user.role == Role.ADMIN else current_user.id
+    export_id = await export_service.start_export(format, owner_id=owner_id)
     return {"export_id": str(export_id), "status": "processing"}
 
 
@@ -146,5 +149,4 @@ async def get_task_history(
     task: Task = Depends(require_owner_or_admin),
 ):
     """Возвращает историю изменений задачи."""
-    await service.get_task_by_id(task_id)
-    return await service.history_store.get_by_task_id(task_id)
+    return await service.get_task_history(task_id)

@@ -10,7 +10,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app.core.constants import Role, Status
+from app.core.constants import Priority, Role, Status
 from app.errors.exceptions import ConflictError, TaskNotFoundError, UserNotFoundError
 from app.models.orm import Task, User
 from app.models.schemas import TaskCreate, TaskUpdate
@@ -37,8 +37,8 @@ class TaskService:
 
     async def get_all_tasks(
         self,
-        status: str | None = None,
-        priority: str | None = None,
+        status: Status | None = None,
+        priority: Priority | None = None,
         page: int = 1,
         page_size: int = 20,
         sort_by: str = "created_at",
@@ -90,9 +90,7 @@ class TaskService:
 
         try:
             task = await self.store.add(data)
-            await self.store.commit()
         except IntegrityError:
-            await self.store.session.rollback()
             raise ConflictError("Cannot create task") from None
 
         logger.info("Task created: id=%s, title=%s", task.id, task.title)
@@ -117,7 +115,6 @@ class TaskService:
                 await self._record_change(task_id, field, old_val, new_val)
 
         task = await self.store.update(task_id, changes)
-        await self.store.commit()
         logger.info("Task updated: id=%s, fields=%s", task_id, update_data.model_fields_set)
         return task
 
@@ -145,7 +142,6 @@ class TaskService:
         if old_status != result.status:
             await self._record_change(task_id, "status", old_status, result.status)
 
-        await self.store.commit()
         logger.info("Task assigned: task_id=%s, user_id=%s", task_id, user_id)
         return result
 
@@ -159,7 +155,6 @@ class TaskService:
         result = await self.store.archive(task_id)
 
         await self._record_change(task_id, "status", old_status, result.status)
-        await self.store.commit()
         logger.debug("Task %s archived, sending notification", task_id)
         notification_start = time.monotonic()
         await self.notification_service.notify_task_archived(result)
@@ -179,7 +174,6 @@ class TaskService:
         result = await self.store.complete(task_id)
         await self._record_change(task_id, "status", old_status, result.status)
 
-        await self.store.commit()
         logger.debug("Task %s closed, sending notification", task_id)
         notification_start = time.monotonic()
         await self.notification_service.notify_task_closed(result)
@@ -187,8 +181,12 @@ class TaskService:
         logger.info("Task completed: id=%s", task_id)
         return result
 
-    async def get_summary(self) -> dict:
-        return await self.store.get_summary()
+    async def get_summary(self, owner_id: UUID | None = None) -> dict:
+        return await self.store.get_summary(owner_id=owner_id)
+
+    async def get_task_history(self, task_id: UUID):
+        await self.get_task_by_id(task_id)
+        return await self.history_store.get_by_task_id(task_id)
 
     async def _record_change(self, task_id: UUID, field: str, old_value, new_value):
         await self.history_store.add_entry(

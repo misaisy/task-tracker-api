@@ -3,6 +3,7 @@
 Слой: доступ к данным (storage).
 """
 from datetime import UTC, datetime
+from uuid import UUID
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +17,7 @@ class TaskHistoryStore:
 
     async def add_entry(
         self,
-        task_id: int,
+        task_id: UUID,
         field: str,
         old_value: str | None,
         new_value: str | None,
@@ -30,9 +31,10 @@ class TaskHistoryStore:
         )
         self.session.add(entry)
         await self.session.flush()
+        await self.session.commit()
         return entry
 
-    async def get_by_task_id(self, task_id: int) -> list[TaskHistory]:
+    async def get_by_task_id(self, task_id: UUID) -> list[TaskHistory]:
         stmt = (
             select(TaskHistory)
             .where(TaskHistory.task_id == task_id)

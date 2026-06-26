@@ -3,6 +3,7 @@
 Слой: доступ к данным (storage).
 """
 from datetime import UTC, datetime
+from uuid import UUID
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +24,15 @@ class UserStore:
         )
         self.session.add(user)
         await self.session.flush()
+        await self.session.commit()
+        return user
+
+    async def update(self, user_id: UUID, data: dict) -> User:
+        user = await self.session.get_one(User, user_id)
+        for field, value in data.items():
+            setattr(user, field, value)
+        await self.session.flush()
+        await self.session.commit()
         return user
 
     async def get_all(self) -> list[User]:
@@ -30,11 +40,8 @@ class UserStore:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_by_id(self, user_id: int) -> User:
+    async def get_by_id(self, user_id: UUID) -> User:
         return await self.session.get_one(User, user_id)
-
-    async def commit(self):
-        await self.session.commit()
 
     async def clear(self):
         await self.session.execute(delete(User))

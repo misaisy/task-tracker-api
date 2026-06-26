@@ -6,7 +6,8 @@ import time
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi import Response
+from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.storage.task_store import TaskStore
@@ -20,19 +21,19 @@ class ExportService:
         self._results: dict[UUID, dict] = {}
         self._running_tasks: dict[UUID, asyncio.Task] = {}
 
-    async def start_export(self, format: str) -> UUID:
+    async def start_export(self, format: str, owner_id: UUID | None = None) -> UUID:
         export_id = uuid4()
         self._results[export_id] = {"status": "processing", "result": None, "format": format}
-        self._running_tasks[export_id] = asyncio.create_task(self._run_export(export_id, format))
+        self._running_tasks[export_id] = asyncio.create_task(self._run_export(export_id, format, owner_id))
         return export_id
 
-    async def _run_export(self, export_id: UUID, format: str):
+    async def _run_export(self, export_id: UUID, format: str, owner_id: UUID | None = None):
         logger.debug("Export %s started (format=%s)", export_id, format)
         start = time.monotonic()
         try:
             async with self.session_factory() as session:
                 task_store = TaskStore(session)
-                tasks = await task_store.get_all()
+                tasks = await task_store.get_filtered_tasks(owner_id=owner_id)
                 if format == "csv":
                     result = await asyncio.to_thread(self._generate_csv, tasks)
                 else:
@@ -55,9 +56,13 @@ class ExportService:
             return JSONResponse(status_code=500, content={"detail": export.get("error", "Export failed")})
 
         result = export["result"]
-        if export["format"] == "csv":
-            return PlainTextResponse(content=result, media_type="text/csv")
-        return JSONResponse(content=result)
+        filename = f"tasks.{export['format']}"
+        media_type = "text/csv" if export["format"] == "csv" else "application/json"
+        return Response(
+            content=result,
+            media_type=media_type,
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
 
     def _generate_csv(self, tasks) -> str:
         output = io.StringIO()

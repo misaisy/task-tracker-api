@@ -3,6 +3,7 @@
 Слой: доступ к данным (storage).
 """
 from datetime import UTC, datetime
+from uuid import UUID
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,12 +24,13 @@ class CommentStore:
         )
         self.session.add(comment)
         await self.session.flush()
+        await self.session.commit()
         return comment
 
-    async def get_by_id(self, comment_id: int) -> Comment:
+    async def get_by_id(self, comment_id: UUID) -> Comment:
         return await self.session.get_one(Comment, comment_id)
 
-    async def get_by_task_id(self, task_id: int) -> list[Comment]:
+    async def get_by_task_id(self, task_id: UUID) -> list[Comment]:
         stmt = (
             select(Comment)
             .where(Comment.task_id == task_id)
@@ -44,9 +46,6 @@ class CommentStore:
         )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
-
-    async def commit(self):
-        await self.session.commit()
 
     async def clear(self):
         await self.session.execute(delete(Comment))

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from app.dependencies import get_user_service
@@ -15,11 +15,7 @@ async def login(
     user_service: UserService = Depends(get_user_service),
 ):
     """Вход по имени и паролю. Возвращает JWT-токен."""
-    user = await user_service.get_by_username(form_data.username)
-    if user is None or not await user_service.verify_password(form_data.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account is deactivated")
+    user = await user_service.authenticate(form_data.username, form_data.password)
     token = await create_access_token(user.id)
     return {"access_token": token, "token_type": "bearer"}
 

@@ -50,6 +50,5 @@ def get_user_service(db: AsyncSession = Depends(get_db)) -> UserService:
 
 def get_comment_service(db: AsyncSession = Depends(get_db)) -> CommentService:
     comment_store = CommentStore(db)
-    user_store = UserStore(db)
     task_store = TaskStore(db)
-    return CommentService(store=comment_store, user_store=user_store, task_store=task_store)
+    return CommentService(store=comment_store, task_store=task_store)
